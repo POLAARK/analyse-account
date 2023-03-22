@@ -1,5 +1,5 @@
 import { TokenHistory  } from "src/model/historical-token-trading"
-import { fetchHttpJsonHandlingTooManyRequest, isOccurenceInString } from "src/utils/utils"; 
+import { fetchHttpJsonHandlingTooManyRequest, isOccurenceInString } from "../../utils/utils.js"; 
 
 export const ApiDebank = class ApiDebank {
     address : string;
@@ -57,9 +57,7 @@ export const ApiDebank = class ApiDebank {
             token_dict = historydata.data.token_dict;
         }
         this.token_traded.date = Date.now();
-        for (let aaa of this.token_traded.token_value_traded) {
-            console.log(aaa);
-        }
+        return this.token_traded;
         
     }
 
