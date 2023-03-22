@@ -1,5 +1,5 @@
 src/test.ts
 node_modules
 dist
-src/config
+config
 src/deploy-command.ts
