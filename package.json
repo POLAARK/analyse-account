@@ -1,0 +1,23 @@
+{
+  "name": "analyse-account",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "echo \"Lancement de la fusée\" && npx tsc && node dist/app.js",
+    "build": "npx tsc",
+    "scrape": "npx tsc && node dist/proxytesting.js",
+    "test": "npx tsc && node dist/test.js",
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^18.15.5",
+    "typescript": "^5.0.2"
+  },
+  "dependencies": {
+    "discord.js": "^14.8.0",
+    "node-fetch": "^3.3.1"
+  }
+}
