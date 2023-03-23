@@ -69,7 +69,6 @@ export const ApiDebank = class ApiDebank {
             timestamp = token_history.data.history_list[token_history.data.history_list.length - 1].time_at;
         }
         catch(err) {
-            console.log(token_history.data.history_list)
             timestamp = 0;
         }
         let value : number = 0;
