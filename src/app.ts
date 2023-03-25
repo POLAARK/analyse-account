@@ -6,7 +6,6 @@ import path from 'path';
 
 
 const token : string = process.env.DISCORD_TOKEN;
-console.log(token);
 // Create a new Discord client
 const client : any = new Client({intents : [GatewayIntentBits.Guilds]});
 

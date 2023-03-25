@@ -53,9 +53,6 @@ export const fetchHttpJsonHandlingTooManyRequest = async function(url: string, c
     return body;
 }
 
-export const isExistNetworksFile = function(path: string): boolean {
-    return fs.existsSync(path);
-}
 
 export const makeDirectory = function(path: string): void {
     if(!fs.existsSync(path))
