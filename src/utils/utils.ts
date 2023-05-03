@@ -13,8 +13,8 @@ export const fetchhttpJsonPuppeteer = async function(url: string, jsonRequest : 
 
     // Listen for 'request' events
     page.on('request', (request) => {
-        console.log(`Request URL: ${request.url()}`);
-        request.continue();
+        // console.log(`Request URL: ${request.url()}`);
+        request.continue(); 
         let requestUrl = request.url();
         if (
             requestUrl.startsWith('https://api.debank.com/history/list?user_addr=') 
@@ -22,31 +22,34 @@ export const fetchhttpJsonPuppeteer = async function(url: string, jsonRequest : 
           //   contentType &&
           //   contentType.includes('application/json')
           ) {
-            console.log(`JSON Response URL: ${requestUrl}`);
-            // console.log(await response.text())
-          //   const content = await response.json();
-          //   console.log(`JSON Response content: ${JSON.stringify(content, null, 2)}`);
+            console.log(`JSON Response URL: ${request.response()}`);
           }
     });
 
     // Listen for 'response' events
-    // page.on('response', async (response) => {
-    //     const requestUrl = response.url();
-    //     // const contentType = response.headers()['content-type'];
+    page.on('response', async (response) => {
+        const requestUrl = response.url();
+        // const contentType = response.headers()['content-type'];
     
-    //     // Check if the URL matches the desired pattern and the content type is JSON
-    //     if (
-    //       requestUrl.startsWith('https://api.debank.com/history/list?user_addr=') 
-    //     //   &&
-    //     //   contentType &&
-    //     //   contentType.includes('application/json')
-    //     ) {
-    //       console.log(`JSON Response URL: ${requestUrl}`);
-    //       console.log(await response.text())
-    //     //   const content = await response.json();
-    //     //   console.log(`JSON Response content: ${JSON.stringify(content, null, 2)}`);
-    //     }
-    // });
+        // Check if the URL matches the desired pattern and the content type is JSON
+        if (
+          requestUrl.startsWith('https://api.debank.com/history/list?user_addr=') 
+        //   &&
+        //   contentType &&
+        //   contentType.includes('application/json')
+        ) {
+          console.log(`JSON Response URL: ${requestUrl}`);
+        //   console.log(response);
+        try {
+            const content = await response.json();
+          console.log(content);
+        }
+        catch (err) {
+            console.log(' Pref light request Erreur ');
+        }
+        //   console.log(`JSON Response content: ${JSON.stringify(content, null, 2)}`);
+        }
+    });
 
     // Navigate to the target URL
     await page.goto(url);
