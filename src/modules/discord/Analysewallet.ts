@@ -25,7 +25,7 @@ export default {
 			const token_history : TokenHistory = await DebankAPi.seeActions();
 			for (let token of token_history.token_value_traded){
 				message += token.token_name + 'on ' + token.chain +' : ' + token.value.toString() + '  ' + token.token_address + '\n'
-			}
+			}	
 			await interaction.reply(message);
 		},
 };

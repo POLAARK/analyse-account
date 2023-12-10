@@ -2,13 +2,13 @@
   "name": "analyse-account",
   "version": "1.0.0",
   "description": "",
-  "type" : "module",
+  "type": "module",
   "main": "src/app.ts",
   "scripts": {
     "start": "npx tsc && node dist/app.js",
     "build": "npx tsc",
     "test": "npx tsc && node dist/test.js",
-    "deploy" : "npx tsc && node dist/deploy-command.js"
+    "deploy": "npx tsc && node dist/deploy-command.js"
   },
   "keywords": [],
   "author": "Ark",
@@ -20,6 +20,7 @@
   "dependencies": {
     "discord.js": "^14.8.0",
     "dotenv": "^16.0.3",
+    "ethers": "^6.9.0",
     "node-fetch": "^3.3.1"
   }
 }
