@@ -3,13 +3,11 @@
   "version": "1.0.0",
   "description": "",
   "type": "module",
-  "type": "module",
   "main": "src/app.ts",
   "scripts": {
     "start": "npx tsc && node dist/app.js",
     "build": "npx tsc",
     "test": "npx tsc && node dist/test.js",
-    "deploy": "npx tsc && node dist/deploy-command.js"
     "deploy": "npx tsc && node dist/deploy-command.js"
   },
   "keywords": [],

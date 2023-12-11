@@ -3,3 +3,5 @@ node_modules
 dist
 config/*
 src/deploy-command.ts
+.env
+data/wallets/*
