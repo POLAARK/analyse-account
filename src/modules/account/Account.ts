@@ -1,6 +1,8 @@
-import { JsonRpcProvider, TransactionResponse, ethers } from "ethers";
+import { JsonRpcProvider, TransactionResponse, ethers, formatEther } from "ethers";
 import erc20 from "../abis/erc20.js";
-import { determineTransactionType } from "../transaction/transaction.entity.js";
+import { determineTransactionType, TransactionList } from "../transaction/transaction.entity.js";
+import { getETHtoUSD } from "../transaction/transaction.utils.js";
+
 interface TokenTransactions {
     transactionList : TransactionList[]
     performanceETH : number;
@@ -34,14 +36,18 @@ export class Account {
         let transactionType: 'buy' | 'sell' | 'unknown' = determineTransactionType(this.address, tx, decodedInput); // Placeholder, actual logic needed
 
         // Calculate values in ETH
-        let valueInETH = ethers.utils.formatEther(tx.value); 
+        let valueInETH = formatEther(tx.value); 
 
         // Calculate values in USD
         // This requires an external API call to get ETH to USD conversion rate
-        let valueInUSD = await this.getETHtoUSD(valueInETH);
+        let valueInUSD = getETHtoUSD(valueInETH);
 
         // Update token history and balances
         this.updateBalances(decodedInput.value, valueInETH, valueInUSD, transactionType);
+    }
+    
+    updateBalances(value: bigint, valueInETH: string, valueInUSD: string, transactionType: string) {
+        throw new Error("Method not implemented.");
     }
 
 

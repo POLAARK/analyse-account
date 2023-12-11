@@ -1,5 +1,5 @@
 import { TokenHistory  } from "src/model/historical-token-trading"
-import { fetchHttpJsonHandlingTooManyRequest, isOccurenceInString } from "../../utils/utils.js"; 
+import { fetchHttpJsonHandlingTooManyRequest, isOccurenceInString } from "../../utils/fetchUtils.js"; 
 
 export const ApiDebank = class ApiDebank {
     address : string;

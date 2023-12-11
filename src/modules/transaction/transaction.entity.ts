@@ -1,6 +1,6 @@
 import { TransactionResponse } from "ethers"
 
-interface TransactionList {
+export interface TransactionList {
     transactions : Transaction[]
 }
 
