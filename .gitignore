@@ -5,3 +5,4 @@ config/*
 src/deploy-command.ts
 .env
 data/wallets/*
+!data/wallets/0x.json

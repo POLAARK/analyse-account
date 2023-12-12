@@ -15,7 +15,6 @@ export class TransactionStreamer {
     constructor(accountList : Account[]) {
         this.__dirname = path.dirname(fileURLToPath(import.meta.url));
         this.jsonRpcProvider = new JsonRpcProvider(process.env.JSON_URL, 'mainnet');
-        console.log(process.env.API_ethereum)
         this.etherscanProvider = new MyEtherscanProvider(process.env.API_ethereum)
         this.accountList = accountList;
 
@@ -36,7 +35,7 @@ export class TransactionStreamer {
                 account.transactionList = data.transactionsList ? data.transactionsList : account.transactionList; 
             }
             
-            const history = await this.etherscanProvider.getNormalTransactions(account.address, start ? start : latest - 1000, latest);
+            const history = await this.etherscanProvider.getNormalTransactions(account.address, start ? start : 0, latest);
             history.forEach((tx : TransactionResponse, index : number) => {
                 if (index == 0 && tx.blockNumber > account.lastBlockUpdate)
                 {
