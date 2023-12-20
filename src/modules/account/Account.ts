@@ -41,7 +41,7 @@ export class Account {
     }
 
     async processTransaction(tx: TransactionResponse) {
-        return await getTransactionTransferlogs(this.jsonRpcProvider, tx);
+        return await getTransactionTransferlogs(this.jsonRpcProvider, tx, this.address);
     }
 
     updateBalances(value: bigint, valueInETH: string, valueInUSD: string, transactionType: string) {
@@ -60,7 +60,7 @@ export class Account {
 
         for (let transaction of this.transactionList) {
             try {
-                const logs = await getTransactionTransferlogs(this.jsonRpcProvider, transaction);
+                const logs = await getTransactionTransferlogs(this.jsonRpcProvider, transaction, this.address);
                 const result = { hash: transaction.hash, logs: logs };
                 results.push(result);
             } catch (error) {

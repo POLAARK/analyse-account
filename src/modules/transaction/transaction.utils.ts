@@ -1,29 +1,24 @@
-import { Contract, Interface, LogDescription, Provider, TransactionResponse } from "ethers";
+import { Contract, Interface, LogDescription, Provider, TransactionResponse, ethers } from "ethers";
 import { erc20 } from "../abis/erc20.js";
+import { TransferTx } from "./transaction.entity.js";
 
 export function getETHtoUSD(valueInETH: string) {
     console.log("TO BE IMPLEMENTED : getETHtoUSD")
     return valueInETH;
 }
 
-export function determineTransactionType(provider: Provider, accountAddress: string, tx: TransactionResponse, decodedInput: any): 'buy' | 'sell' | 'unknown' {
-    // Assuming decodedInput has fields like 'from', 'to', and 'value'
-    // and tx represents an ERC-20 token transfer
+export function determineTransactionType(accountAddress: string, parsedLog : LogDescription ): "IN" | "OUT" {
 
-    // If the account is the recipient in the transaction, it's likely a 'buy'
-    if (decodedInput.to && decodedInput.to.toLowerCase() === accountAddress.toLowerCase()) {
-        return 'buy';
+    if (parsedLog.args[0] == accountAddress){
+        return "OUT";
     }
-    // If the account is the sender in the transaction, it's likely a 'sell'
-    else if (tx.from && tx.from.toLowerCase() === accountAddress.toLowerCase()) {
-        return 'sell';
+    if (parsedLog.args[1] == accountAddress){
+        return "IN";
     }
-
-    // If it's neither, or if the transaction structure is not recognized
-    return 'unknown';
+    return;
 }
 
-export async function getTransactionTransferlogs(provider: Provider, tx: TransactionResponse): Promise<LogDescription[]> {
+export async function getTransactionTransferlogs(provider: Provider, tx: TransactionResponse, address : string): Promise<TransferTx[]> {
 
     // console.log("Processing transaction hash:", tx.hash); // Log the transaction hash
     const interfaceERC20 = new Interface(erc20);
@@ -31,36 +26,49 @@ export async function getTransactionTransferlogs(provider: Provider, tx: Transac
     try {
         // Get transaction receipt
         const transactionReceipt = await provider.getTransactionReceipt(tx.hash);
-
+        
         //Loop through Log :
+        let transferTxSummary : TransferTx[] = [];
+        let transferTxLogs: LogDescription[] = []; // Initialize the array
+
         for (let log of transactionReceipt.logs) {
             let logCopy = {
                 ...log,
                 topics: [...log.topics]
             };
-            parsedLog = interfaceERC20.parseLog(logCopy);
-        }
-        const parsedTxLogs = transactionReceipt.logs.map((log) => {
-            const logCopy = {
-                ...log,
-                topics: [...log.topics]
-            };
-            return interfaceERC20.parseLog(logCopy);
-        });
-
-        let transferTxLogs: LogDescription[] = []; // Initialize the array
-        for (let log of parsedTxLogs) {
-            if (log?.name && (log.name === "Transfer" || log.name === "Permit")) {
-                transferTxLogs.push(log);
+            let contractERC20: Contract;
+            try {
+                contractERC20 = new ethers.Contract(log.address, erc20, provider);
             }
+            catch(err) {
+                console.log(err);
+            }
+
+            const parsedLog : LogDescription = interfaceERC20.parseLog(logCopy);
+            let tokenDecimals : bigint;
+            try {
+                tokenDecimals = await contractERC20.decimals()
+            }
+            catch(err) {
+                tokenDecimals = 18n; 
+            }
+            if (parsedLog?.name && (parsedLog.name === "Transfer" )) { // || parsedLog.name === "Permit"
+                let transferTx : TransferTx = {
+                    tokenAdress : log.address,
+                    amount : BigIntDivisionForAmount(parsedLog.args[2] as bigint, 10n**tokenDecimals),
+                    symbol  : (contractERC20.symbol) ? await contractERC20.symbol() as string : undefined,
+                    status : determineTransactionType(address, parsedLog)
+                }
+
+                transferTxSummary.push(transferTx);
+            } 
             else {
                 // console.log("Non-transfer log:", log);
             }
         }
-
         // console.log("Transaction hash:", tx.hash, '\n------------------');
         // console.log("Transfer logs:", transferTxLogs);
-        return transferTxLogs;
+        return transferTxSummary;
     }
     catch (e) {
         console.error("Error processing transaction:", tx.hash, e);
@@ -68,5 +76,9 @@ export async function getTransactionTransferlogs(provider: Provider, tx: Transac
     }
 }
 
-// If the transfer goes through a router, we use the pair, we can get token0 base and token1 = token traded. 
-// If we sent from  token1 = sell if we receive
+function BigIntDivisionForAmount(amount : bigint, decimals : bigint){
+    if (amount / decimals <= 1000000n){
+        return parseFloat((Number(amount/10n**6n) / Number(decimals/(10n**6n))).toFixed(3));
+    }
+    else return amount / decimals
+}

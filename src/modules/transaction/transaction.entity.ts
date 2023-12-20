@@ -1,4 +1,4 @@
-import { TransactionResponse } from "ethers"
+import { LogDescription, TransactionResponse } from "ethers"
 
 export interface TransactionList {
     transactions : Transaction[]
@@ -12,4 +12,15 @@ interface Transaction {
     tokenName? : string 
     tokenAdress? : string
     contractAdress? : string
+}
+
+export interface TransferTx {
+    tokenAdress : string
+    amount : number | BigInt
+    symbol : string
+    status? : "IN" | "OUT"
+}
+
+export interface LogDescriptionExtended extends LogDescription {
+
 }
