@@ -31,10 +31,10 @@ export class Account {
         this.jsonRpcProvider = new JsonRpcProvider(process.env.JSON_URL, {name : 'ethereum', chainId : 1 });
 
         this.__dirname = path.dirname(fileURLToPath(import.meta.url));
-        const filePath = path.join( this.__dirname ,"../../../data/wallets/", `${this.address}.json`);
+        const walletfilePath = path.join( this.__dirname ,"../../../data/wallets/", `${this.address}.json`);
 
-        if (fs.existsSync(filePath)) {
-            const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+        if (fs.existsSync(walletfilePath)) {
+            const data = JSON.parse(fs.readFileSync(walletfilePath, 'utf8'));
             this.lastBlockUpdate = data.lastBlockUpdated ? data.lastBlockUpdated : this.lastBlockUpdate ;
             this.transactionList = data.transactionsList ? data.transactionsList : this.transactionList; 
         }
@@ -84,7 +84,7 @@ export class Account {
                         lastTxBlock : transferTx.blockNumber
                     }
                 }
-                if(tokenAddress == '0xEa83377C306d0De6ED5A5d5ac45cefCe9890cF8f'){
+                if(tokenAddress == '0xe7eF051C6EA1026A70967E8F04da143C67Fa4E1f'){
                     console.log(transferTxSummary);
                 }
                 let index = transferTxSummary.indexOf(transferTx);
@@ -107,10 +107,19 @@ export class Account {
                     pairDiffETH = true;
                     this.balanceHistory[tokenAddress].pair = pairType;
                     let amount = Number(transferTx.amount);
-                    if (transferTx.status === "IN") {
-                        this.balanceHistory[tokenAddress].pairGained += amount;
-                    } else if (transferTx.status === "OUT") {
-                        this.balanceHistory[tokenAddress].pairSpent += amount;
+                    if (pairType == "ETH") {
+                        if (transferTx.status === "IN") {
+                            this.balanceHistory[tokenAddress].EthGained += amount;
+                        } else if (transferTx.status === "OUT") {
+                            this.balanceHistory[tokenAddress].EThSpent += amount;
+                        }
+                    }
+                    else {
+                        if (transferTx.status === "IN") {
+                            this.balanceHistory[tokenAddress].pairGained += amount;
+                        } else if (transferTx.status === "OUT") {
+                            this.balanceHistory[tokenAddress].pairSpent += amount;
+                        }
                     }
                 }
             }
@@ -138,6 +147,7 @@ export class Account {
             }
         }
     }
+
     async getAccountTransactions() {
         const results = [];
 
@@ -172,26 +182,26 @@ export class Account {
             let transferTxSummary : TransferTx[] = [];
     
             for (let log of transactionReceipt.logs) {
+
+                //Create a logCopy because of types :)
                 let logCopy = {
                     ...log,
                     topics: [...log.topics]
                 };
                 let contractERC20: Contract;
-                try {
-                    contractERC20 = new ethers.Contract(log.address, erc20, this.jsonRpcProvider);
-                }
-                catch(err) {
-                    console.log(err);
-                }
-    
+                contractERC20 = new ethers.Contract(log.address, erc20, this.jsonRpcProvider);
                 const parsedLog : LogDescription = interfaceERC20.parseLog(logCopy);
                 let tokenDecimals : bigint;
+
+                //No decimals ? decimals = 18 
                 try {
                     tokenDecimals = await contractERC20.decimals()
                 }
                 catch(err) {
                     tokenDecimals = 18n; 
                 }
+
+                //Correct TransferObject
                 if (parsedLog?.name && (parsedLog.name === "Transfer" )) { 
                     let transferTx : TransferTx = {
                         blockNumber : tx.blockNumber,
@@ -205,9 +215,6 @@ export class Account {
                     transferTxSummary.push(transferTx);
 
                     
-                } 
-                else {
-                    // console.log("Non-transfer log:", log);
                 }
             }
             // console.log("Transaction hash:", tx.hash, '\n------------------');
@@ -216,7 +223,12 @@ export class Account {
             return transferTxSummary;
         }
         catch (e) {
-            console.error("Error processing transaction:", tx.hash, e);
+            if (e.code == 'BUFFER_OVERRUN'){
+                return [];
+            }
+            else{
+                console.error("Error processing transaction:", tx.hash, e);
+            }
             return [];
         }
     }

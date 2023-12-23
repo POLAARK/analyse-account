@@ -15,7 +15,7 @@ export default class MyEtherscanProvider {
     
 
 
-    async getNormalTransactions( address: string, startBlock: number, endBlock: number = 99999999, offset: number = 100) {
+    async getNormalTransactions( address: string, startBlock: number, endBlock: number = 99999999, offset: number = 2000) {
         const parameters = `api`        +
             `?module=account`           +
             `&action=txlist`            +
