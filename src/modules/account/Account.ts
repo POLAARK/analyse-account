@@ -94,6 +94,9 @@ export class Account {
                 break;
             }
         }
+        if ( tokenAddress == ""){
+            return;
+        }
         let pairDiffETH : boolean = false;
         for (let transferTx of transferTxSummary){
             if (transferTx?.status) {
@@ -153,18 +156,6 @@ export class Account {
             fs.promises.writeFile('transactionsResults.json', JSON.stringify(this.balanceHistory, null, 2));
         } catch (error) {
             console.error('Error writing to file:', error);
-        }
-    }
-
-    async defineTransaction(logs: any) {
-        let transactionType : string;
-        for (let log of logs) {
-            if (log.name == 'Transfer'){
-                if (log.args[0] == this.address) {
-                    const erc20Contract = new ethers.Contract(log.address, erc20, this.jsonRpcProvider);
-                    transactionType = "Token sent"
-                }
-            }
         }
     }
 

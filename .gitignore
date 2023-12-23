@@ -6,3 +6,4 @@ src/deploy-command.ts
 data/wallets/*
 !data/wallets/0x.json
 data/histories/*
+transactionsResults.json
