@@ -5,6 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { config } from "dotenv";
 import MyEtherscanProvider from "../etherscanProvider/etherscanProvider.js";
+import { TransactionResponseExtended } from "../transaction/transaction.entity";
 
 config({ path: 'src/../.env' });
 export class TransactionStreamer {
@@ -36,7 +37,7 @@ export class TransactionStreamer {
             }
             
             const history = await this.etherscanProvider.getNormalTransactions(account.address, start ? start : 0, latest);
-            history.forEach((tx : TransactionResponse, index : number) => {
+            history.forEach((tx : TransactionResponseExtended, index : number) => {
                 if (index == 0 && tx.blockNumber > account.lastBlockUpdate)
                 {
                     account.lastBlockUpdate = tx.blockNumber;

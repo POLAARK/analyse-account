@@ -15,12 +15,14 @@ interface Transaction {
 }
 
 export interface TransferTx {
+    blockNumber : number
+    timestamp : number,
     tokenAdress : string
     amount : number | BigInt
     symbol : string
     status? : "IN" | "OUT"
 }
 
-export interface LogDescriptionExtended extends LogDescription {
-
+export interface TransactionResponseExtended extends TransactionResponse {
+    timeStamp: string
 }

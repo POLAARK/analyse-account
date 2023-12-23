@@ -1,6 +1,5 @@
 import { Account } from "./modules/account/Account.js";
 import { TransactionStreamer } from "./modules/streamer/TransactionStreamer.js";
-import { getTransactionTransferlogs } from "./modules/transaction/transaction.utils.js";
 const account = new Account("0x3682757ab9D9a1B98124f6b5907eBf44586EE813")
 
 // const streamer = new TransactionStreamer([account])

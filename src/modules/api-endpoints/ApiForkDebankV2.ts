@@ -1,4 +1,4 @@
-import { TokenHistory  } from "src/model/historical-token-trading"
+import { TokenHistory  } from "src/model/historical-token-trading.js"
 import { fetchHttpJsonHandlingTooManyRequest, isOccurenceInString } from "../../utils/fetchUtils.js"; 
 import puppeteer, { Browser, Page } from "puppeteer";
 import { randomInt } from "crypto";
