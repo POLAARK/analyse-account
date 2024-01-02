@@ -9,16 +9,12 @@ import { TransactionResponseExtended } from "../transaction/transaction.entity";
 
 config({ path: 'src/../.env' });
 export class TransactionStreamer {
-    jsonRpcProvider: JsonRpcProvider;
-    etherscanProvider : MyEtherscanProvider;
-    accountList: Account[]; //To be typed;
-    __dirname : string;
+    jsonRpcProvider: JsonRpcProvider = new JsonRpcProvider(process.env.JSON_URL, 'mainnet');
+    etherscanProvider : MyEtherscanProvider= new MyEtherscanProvider(process.env.API_ethereum);
+    accountList: Account[]; 
+    __dirname : string = path.dirname(fileURLToPath(import.meta.url));
     constructor(accountList : Account[]) {
-        this.__dirname = path.dirname(fileURLToPath(import.meta.url));
-        this.jsonRpcProvider = new JsonRpcProvider(process.env.JSON_URL, 'mainnet');
-        this.etherscanProvider = new MyEtherscanProvider(process.env.API_ethereum)
         this.accountList = accountList;
-
     }
 
     async builtAccountTransactionHistory(last? : number, start? : number) {

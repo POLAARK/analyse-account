@@ -70,7 +70,6 @@ export class Account {
                 tokenPath = transferTx.status;
                 if (tokenAddress in this.balanceHistory) {
                     //current = ;
-                    
                     this.balanceHistory[tokenAddress].numberOfTx += 1; 
                 }
                 else {
@@ -211,14 +210,11 @@ export class Account {
                         symbol  : (contractERC20.symbol) ? await contractERC20.symbol() as string : undefined,
                         status : determineTransactionType(this.address, parsedLog)
                     }
-    
                     transferTxSummary.push(transferTx);
 
                     
                 }
             }
-            // console.log("Transaction hash:", tx.hash, '\n------------------');
-            // console.log("Transfer logs:", transferTxLogs);
             await this.updateBalances({ transferTxSummary: [...transferTxSummary] });
             return transferTxSummary;
         }
