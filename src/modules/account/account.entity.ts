@@ -10,7 +10,8 @@ export interface TokenHistory {
     EthGained : number, 
     pair? : "ETH" | "USD" | null,
     numberOfTx : number,
-    lastTxBlock : number
+    lastTxBlock : number,
+    performanceUSD : number,
 }
 
 export type BalanceHistory = {[address : string] : TokenHistory};

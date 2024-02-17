@@ -6,4 +6,7 @@ src/deploy-command.ts
 data/wallets/*
 !data/wallets/0x.json
 data/histories/*
+!data/histories/0xhistory.json
 transactionsResults.json
+downloadEthPrice/config.txt
+data/total_ohlc_ETH.json

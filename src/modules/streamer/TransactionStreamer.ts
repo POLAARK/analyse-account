@@ -18,32 +18,37 @@ export class TransactionStreamer {
     }
 
     async builtAccountTransactionHistory(last? : number, start? : number) {
-        
-        const latest = last ? last : await this.jsonRpcProvider.getBlockNumber();
+        try{
+            const latest = last ? last : await this.jsonRpcProvider.getBlockNumber();
          
-        for (let account of this.accountList) {
-            
-            const filePath = path.join( this.__dirname ,"../../../data/wallets/", `${account.address}.json`);
-
-            // Check if the file exists and read the last updated block
-            if (fs.existsSync(filePath)) {
-                const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
-                account.lastBlockUpdate = data.lastBlockUpdated ? data.lastBlockUpdated : account.lastBlockUpdate ;
-                account.transactionList = data.transactionsList ? data.transactionsList : account.transactionList; 
-            }
-            
-            const history = await this.etherscanProvider.getNormalTransactions(account.address, start ? start : 0, latest);
-            history.forEach((tx : TransactionResponseExtended, index : number) => {
-                if (index == 0 && tx.blockNumber > account.lastBlockUpdate)
-                {
-                    account.lastBlockUpdate = tx.blockNumber;
+            for (let account of this.accountList) {
+                
+                const filePath = path.join( this.__dirname ,"../../../data/wallets/", `${account.address}.json`);
+    
+                // Check if the file exists and read the last updated block
+                if (fs.existsSync(filePath)) {
+                    const data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                    account.lastBlockUpdate = data.lastBlockUpdated ? data.lastBlockUpdated : account.lastBlockUpdate ;
+                    account.transactionList = data.transactionsList ? data.transactionsList : account.transactionList; 
                 }
-                account.transactionList.push(tx);
-            })
-            fs.writeFileSync(filePath, JSON.stringify({
-                lastBlockUpdated: account.lastBlockUpdate,
-                transactionsList: account.transactionList
-            }, null, 2));
+                const history = await this.etherscanProvider.getNormalTransactions(account.address, account.lastBlockUpdate ? account.lastBlockUpdate : start ? start : 0, latest);
+                history.forEach((tx : TransactionResponseExtended, index : number) => {
+                    if (index == history.length - 1 && tx.blockNumber > account.lastBlockUpdate){
+                            account.lastBlockUpdate = tx.blockNumber;
+                    }
+                    
+                    account.transactionList.push(tx);
+                })
+                console.log(account.lastBlockUpdate);
+                fs.writeFileSync(filePath, JSON.stringify({
+                    lastBlockUpdated: account.lastBlockUpdate,
+                    transactionsList: account.transactionList
+                }, null, 2));
+            }
+    
+        }
+        catch(error) {
+            throw Error (error);
         }
         // arbitrary 1000 block
         

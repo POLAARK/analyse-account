@@ -74,7 +74,7 @@ export const fetchhttpJsonPuppeteerTokenAnalysor = async function(url: string, j
 export const fetchhttpJsonPuppeteerLoadNewPage = async function(url: string, jsonRequestUrl : string) : Promise<any> {
 
     // Launch the browser
-    const browser = await puppeteer.launch({headless: 'new'});
+    const browser = await puppeteer.launch({ headless: true});
     const page = await browser.newPage();
 
     // Enable request interception

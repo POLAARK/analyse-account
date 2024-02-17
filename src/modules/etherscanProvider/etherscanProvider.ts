@@ -3,7 +3,7 @@ import { fetchHttpJson } from '../../utils/fetchUtils.js';
 
 export default class MyEtherscanProvider {
     #API_KEYS : string;
-
+    #RETRY_COUNT : number = 3;
     #endpoint: string;
     constructor(apiKey?: string) {
         this.#API_KEYS = apiKey;
@@ -16,6 +16,7 @@ export default class MyEtherscanProvider {
 
 
     async getNormalTransactions( address: string, startBlock: number, endBlock: number = 99999999, offset: number = 2000) {
+        const count = 0;
         const parameters = `api`        +
             `?module=account`           +
             `&action=txlist`            +
@@ -26,8 +27,21 @@ export default class MyEtherscanProvider {
             `&offset=${offset}`         +
             `&sort=asc`                 +
             `&apikey=${this.#API_KEYS}`;
-            
-        const response = await fetchHttpJson(this.#endpoint + parameters);
+            let response : any; //TODO : proper Error typing
+            //TODO: double check proper error handling
+        try {
+            response = await fetchHttpJson(this.#endpoint + parameters);
+        }
+        catch(error) {
+            if (error.statusCode === 429 || error.message.includes("rate limit")) { 
+                console.log("Rate limit reached, retrying in 15 minutes...");
+                await new Promise(resolve => setTimeout(resolve, 900000));
+                response = await fetchHttpJson(this.#endpoint + parameters);
+            }
+            else {
+                throw Error(error);
+            }
+        }
         if (response.message == 'No transactions found') {
             console.log('No transaction found for this chain : ' + this.#endpoint);
         }
@@ -39,5 +53,5 @@ export default class MyEtherscanProvider {
         }
         
         return response.result;
-    }
+    }ç
 }
