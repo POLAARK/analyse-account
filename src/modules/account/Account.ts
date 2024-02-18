@@ -44,6 +44,7 @@ export class Account {
   balanceInUSD: number = 0;
   balanceHistory: BalanceHistory;
   __dirname: string;
+  historyFilePath: string;
   constructor(address: string) {
     this.address = address;
     this.jsonRpcProvider = new JsonRpcProvider(process.env.JSON_URL, {
@@ -68,18 +69,18 @@ export class Account {
         : this.transactionList;
     }
 
-    const historyFilePath: string = path.join(
+    this.historyFilePath = path.join(
       this.__dirname,
       "../../../data/histories/",
       `${this.address}History.json`
     );
 
-    if (fs.existsSync(historyFilePath)) {
+    if (fs.existsSync(this.historyFilePath)) {
       this.balanceHistory = JSON.parse(
-        fs.readFileSync(historyFilePath, "utf8")
+        fs.readFileSync(this.historyFilePath, "utf8")
       );
     } else {
-      fs.promises.writeFile(historyFilePath, JSON.stringify({}));
+      fs.promises.writeFile(this.historyFilePath, JSON.stringify({}));
       this.balanceHistory = {};
     }
   }
@@ -87,7 +88,7 @@ export class Account {
   getAccountBalance() {}
 
   async processTransaction(tx: TransactionResponseExtended) {
-    return await this.getTransactionTransferlogs(tx);
+    return await this.getTransactionTransferSummary(tx);
   }
 
   async updateBalances({
@@ -211,33 +212,38 @@ export class Account {
   }
 
   async getAccountTransactions() {
-    const results = [];
+    // const results = [];
 
     for (let transaction of this.transactionList) {
       try {
-        const logs = await this.getTransactionTransferlogs(transaction);
-        const result = { hash: transaction.hash, logs: logs };
-        results.push(result);
+        const transactionSummary = await this.getTransactionTransferSummary(
+          transaction
+        );
+        await this.updateBalances({
+          transferTxSummary: [...transactionSummary],
+        });
+        // const result = { hash: transaction.hash, logs: logs };
+        // results.push(result);
       } catch (error) {
         console.error(
           `Error processing transaction ${transaction.hash}:`,
           error
         );
-        results.push({ hash: transaction.hash, error: error.message });
+        // results.push({ hash: transaction.hash, error: error.message });
       }
     }
 
     try {
       fs.promises.writeFile(
-        "transactionsResults.json",
+        this.historyFilePath,
         JSON.stringify(this.balanceHistory, null, 2)
       );
     } catch (error) {
-      console.error("Error writing to file:", error);
+      throw Error("Error writing to file");
     }
   }
 
-  async getTransactionTransferlogs(
+  async getTransactionTransferSummary(
     tx: TransactionResponseExtended
   ): Promise<TransferTx[]> {
     // console.log("Processing transaction hash:", tx.hash); // Log the transaction hash
@@ -291,7 +297,7 @@ export class Account {
           transferTxSummary.push(transferTx);
         }
       }
-      await this.updateBalances({ transferTxSummary: [...transferTxSummary] });
+
       return transferTxSummary;
     } catch (e) {
       if (e.code == "BUFFER_OVERRUN") {
