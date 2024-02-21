@@ -1,8 +1,13 @@
-import { CommandInteraction, SlashCommandBuilder } from "discord.js";
+import {
+  CommandInteraction,
+  SlashCommandBuilder,
+  AttachmentBuilder,
+} from "discord.js";
 import * as fs from "fs";
 import { TokenHistory } from "src/model/historical-token-trading";
 import { Account } from "../account/Account";
 import { TransactionStreamer } from "../streamer/TransactionStreamer";
+import path from "path";
 // import { ApiDebank } from './modules/api-endpoints/ApiForkDebank.js';
 
 export default {
@@ -25,32 +30,28 @@ export default {
     const wallet: string = interaction.options.getString("target");
     const timestamp: number =
       interaction.options.getNumber("timestamp") ??
-      (Date.now() - 365 * 24 * 60 * 60 + (365 * 24 * 60 * 60) / 2) / 1000;
+      Date.now() / 1000 - 365 * 24 * 60 * 60 + (365 * 24 * 60 * 60) / 2;
     await interaction.reply("Analyse started");
     const account = new Account(wallet);
 
     const streamer = new TransactionStreamer([account]);
     streamer.builtAccountTransactionHistory(timestamp);
-    account.getAccountTransactions();
-    let message: string = "";
-    // const token_history: TokenHistory = await DebankAPi.seeActions();
-    // for (let token of token_history.token_value_traded) {
-    //   message +=
-    //     token.token_name +
-    //     "on " +
-    //     token.chain +
-    //     " : " +
-    //     token.value.toString() +
-    //     "  " +
-    //     token.token_address +
-    //     "\n";
-    // }
-    await interaction.reply(message);
+    const walletBalanceHistory = account.getAccountTransactions();
+
+    const jsonString = JSON.stringify(this.data, null, 2);
+
+    const filename = `${this.address}_analysis.json`;
+    const filepath = path.join(__dirname, filename);
+    fs.writeFileSync(filepath, jsonString);
+
+    const attachment = new AttachmentBuilder(filepath, { name: filename });
+
+    await interaction.reply({
+      content: "Here is the analysis:",
+      files: [attachment],
+    });
+
+    fs.unlinkSync(filepath);
+    await interaction.reply(walletBalanceHistory);
   },
 };
-
-// const account = new Account("");
-
-// const streamer = new TransactionStreamer([account]);
-// await streamer.builtAccountTransactionHistory()
-// await account.getAccountTransactions();

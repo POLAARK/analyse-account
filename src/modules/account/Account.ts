@@ -40,8 +40,6 @@ export class Account {
   transactionList: TransactionResponseExtended[] = []; // TransactionList
   address: string;
   lastBlockUpdate: number = 0;
-  balanceInETH: number = 0;
-  balanceInUSD: number = 0;
   balanceHistory: BalanceHistory;
   __dirname: string;
   historyFilePath: string;
@@ -80,8 +78,18 @@ export class Account {
         fs.readFileSync(this.historyFilePath, "utf8")
       );
     } else {
-      fs.promises.writeFile(this.historyFilePath, JSON.stringify({}));
-      this.balanceHistory = {};
+      this.balanceHistory = {
+        summary: {
+          numberOfTokensTraded: 0,
+          performanceUSD: 0,
+          numberOfTxs: 0,
+        },
+        tokenHistories: {},
+      };
+      fs.promises.writeFile(
+        this.historyFilePath,
+        JSON.stringify(this.balanceHistory)
+      );
     }
   }
 
@@ -109,9 +117,9 @@ export class Account {
         tokenPath = transferTx.status;
         if (tokenAddress in this.balanceHistory) {
           //current = ;
-          this.balanceHistory[tokenAddress].numberOfTx += 1;
+          this.balanceHistory.tokenHistories[tokenAddress].numberOfTx += 1;
         } else {
-          this.balanceHistory[tokenAddress] = {
+          this.balanceHistory.tokenHistories[tokenAddress] = {
             tokenSymbol: tokenSymbol,
             EthGained: 0,
             EThSpent: 0,
@@ -150,29 +158,31 @@ export class Account {
           : null;
         if (pairType) {
           pairDiffETH = true;
-          this.balanceHistory[tokenAddress].pair = pairType;
+          this.balanceHistory.tokenHistories[tokenAddress].pair = pairType;
           let amount = Number(transferTx.amount);
           if (pairType == "ETH") {
             if (transferTx.status === "IN") {
-              this.balanceHistory[tokenAddress].EthGained += amount;
-              this.balanceHistory[tokenAddress].performanceUSD += getETHtoUSD(
-                amount,
-                transferTx.timestamp
-              );
+              this.balanceHistory.tokenHistories[tokenAddress].EthGained +=
+                amount;
+              this.balanceHistory.tokenHistories[tokenAddress].performanceUSD +=
+                getETHtoUSD(amount, transferTx.timestamp);
             } else if (transferTx.status === "OUT") {
-              this.balanceHistory[tokenAddress].EThSpent += amount;
-              this.balanceHistory[tokenAddress].performanceUSD -= getETHtoUSD(
-                amount,
-                transferTx.timestamp
-              );
+              this.balanceHistory.tokenHistories[tokenAddress].EThSpent +=
+                amount;
+              this.balanceHistory.tokenHistories[tokenAddress].performanceUSD -=
+                getETHtoUSD(amount, transferTx.timestamp);
             }
           } else {
             if (transferTx.status === "IN") {
-              this.balanceHistory[tokenAddress].pairGained += amount;
-              this.balanceHistory[tokenAddress].performanceUSD += amount;
+              this.balanceHistory.tokenHistories[tokenAddress].pairGained +=
+                amount;
+              this.balanceHistory.tokenHistories[tokenAddress].performanceUSD +=
+                amount;
             } else if (transferTx.status === "OUT") {
-              this.balanceHistory[tokenAddress].pairSpent += amount;
-              this.balanceHistory[tokenAddress].performanceUSD -= amount;
+              this.balanceHistory.tokenHistories[tokenAddress].pairSpent +=
+                amount;
+              this.balanceHistory.tokenHistories[tokenAddress].performanceUSD -=
+                amount;
             }
           }
         }
@@ -183,20 +193,17 @@ export class Account {
         if (!transferTx?.status && tokenAddress !== transferTx.tokenAdress) {
           // WE HAVE TO MAKE SURE IT'S WETH SO WE ARE GOING TO DO AND =/= from token
           // BUT IT CAN BE WHATEVER SO, WE HAVE TO DO, == WETH adrr (in db).
-          this.balanceHistory[tokenAddress].pair = "ETH";
+          this.balanceHistory.tokenHistories[tokenAddress].pair = "ETH";
           let amount = Number(transferTx.amount);
           if (tokenPath === "IN") {
-            this.balanceHistory[tokenAddress].EThSpent += amount;
-            this.balanceHistory[tokenAddress].performanceUSD -= getETHtoUSD(
-              amount,
-              transferTx.timestamp
-            );
+            this.balanceHistory.tokenHistories[tokenAddress].EThSpent += amount;
+            this.balanceHistory.tokenHistories[tokenAddress].performanceUSD -=
+              getETHtoUSD(amount, transferTx.timestamp);
           } else if (tokenPath === "OUT") {
-            this.balanceHistory[tokenAddress].EthGained += amount;
-            this.balanceHistory[tokenAddress].performanceUSD += getETHtoUSD(
-              amount,
-              transferTx.timestamp
-            );
+            this.balanceHistory.tokenHistories[tokenAddress].EthGained +=
+              amount;
+            this.balanceHistory.tokenHistories[tokenAddress].performanceUSD +=
+              getETHtoUSD(amount, transferTx.timestamp);
           }
         }
       }
@@ -222,6 +229,7 @@ export class Account {
         await this.updateBalances({
           transferTxSummary: [...transactionSummary],
         });
+        return this.balanceHistory;
         // const result = { hash: transaction.hash, logs: logs };
         // results.push(result);
       } catch (error) {
