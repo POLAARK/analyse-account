@@ -10,7 +10,7 @@ import path from "path";
 import fs from "fs";
 import { fileURLToPath } from "url";
 import { config } from "dotenv";
-import MyEtherscanProvider from "../etherscanProvider/etherscanProvider.js";
+import MyEtherscanProvider from "../etherscanProvider/etherscanProvider";
 import { TransactionResponseExtended } from "../transaction/transaction.entity";
 
 config({ path: "src/../.env" });
@@ -20,7 +20,7 @@ export class TransactionStreamer {
     "mainnet"
   );
   etherscanProvider: MyEtherscanProvider = new MyEtherscanProvider(
-    process.env.API_ethereum
+    process.env.ETHERSCAN_API_KEY
   );
   accountList: Set<Account>;
   __dirname: string = path.dirname(fileURLToPath(import.meta.url));
@@ -28,9 +28,14 @@ export class TransactionStreamer {
     this.accountList = new Set(accountList);
   }
 
-  async builtAccountTransactionHistory(last?: number, start?: number) {
+  async builtAccountTransactionHistory(
+    lastBlock?: number,
+    startBlock?: number
+  ) {
     try {
-      const latest = last ? last : await this.jsonRpcProvider.getBlockNumber();
+      const latest = lastBlock
+        ? lastBlock
+        : await this.jsonRpcProvider.getBlockNumber();
 
       for (let account of this.accountList) {
         const filePath = path.join(
@@ -51,7 +56,11 @@ export class TransactionStreamer {
         }
         const history = await this.etherscanProvider.getNormalTransactions(
           account.address,
-          account.lastBlockUpdate ? account.lastBlockUpdate : start ? start : 0,
+          account.lastBlockUpdate
+            ? account.lastBlockUpdate + 1
+            : startBlock
+            ? startBlock
+            : 0,
           latest
         );
         history.forEach((tx: TransactionResponseExtended, index: number) => {
@@ -64,7 +73,6 @@ export class TransactionStreamer {
 
           account.transactionList.push(tx);
         });
-        console.log(account.lastBlockUpdate);
         fs.writeFileSync(
           filePath,
           JSON.stringify(

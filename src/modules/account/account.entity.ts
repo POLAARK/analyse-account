@@ -18,6 +18,8 @@ export interface BalanceHistory {
     numberOfTokensTraded: number;
     performanceUSD: number;
     numberOfTxs: number;
+    lastAnalysisTimestamp: undefined | number;
+    startAnalysisTimestamp: undefined | number;
   };
   tokenHistories: { [address: string]: TokenHistory };
 }

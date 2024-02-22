@@ -11,23 +11,20 @@ import {
   TransactionList,
   TransactionResponseExtended,
   TransferTx,
-} from "../transaction/transaction.entity.js";
+} from "../transaction/transaction.entity";
 import {
   BigIntDivisionForAmount,
   determineTransactionType,
   getETHtoUSD,
-} from "../transaction/transaction.utils.js";
-import { erc20 } from "../abis/erc20.js";
+} from "../transaction/transaction.utils";
+import { erc20 } from "../abis/erc20";
 import fs from "fs";
 
 import path from "path";
 import { fileURLToPath } from "url";
 import { config } from "dotenv";
-import { BalanceHistory, TokenHistory } from "./account.entity.js";
-import {
-  OneContainsStrings,
-  containsUsdOrEth,
-} from "../../utils/stringUtils.js";
+import { BalanceHistory, TokenHistory } from "./account.entity";
+import { OneContainsStrings, containsUsdOrEth } from "../../utils/stringUtils";
 
 interface TokenTransactions {
   transactionList: TransactionList[];
@@ -37,7 +34,7 @@ interface TokenTransactions {
 config({ path: "src/../.env" });
 export class Account {
   jsonRpcProvider: JsonRpcProvider;
-  transactionList: TransactionResponseExtended[] = []; // TransactionList
+  transactionList: TransactionResponseExtended[] = [];
   address: string;
   lastBlockUpdate: number = 0;
   balanceHistory: BalanceHistory;
@@ -83,6 +80,8 @@ export class Account {
           numberOfTokensTraded: 0,
           performanceUSD: 0,
           numberOfTxs: 0,
+          lastAnalysisTimestamp: undefined,
+          startAnalysisTimestamp: undefined,
         },
         tokenHistories: {},
       };
@@ -108,6 +107,14 @@ export class Account {
     let tokenAddress: string = "";
     let tokenPath: "IN" | "OUT" | undefined;
     for (let transferTx of transferTxSummary) {
+      if (
+        transferTx.tokenAdress ==
+          "0x508E00D5ceF397B02d260D035e5EE80775e4C821" ||
+        transferTx.tokenAdress ==
+          "0x508E00D5ceF397B02d260D035e5EE80775e4C821".toUpperCase()
+      ) {
+        console.log(transferTx);
+      }
       // NOTE: FOR NOW WE REMOVE INNER TRANSFERS THAT HAVE NO INTERACTION WITH ACCOUNT
       if (transferTx?.status && !containsUsdOrEth(transferTx.symbol)) {
         //The whole is used just to determine which token has been interacted/traded with
@@ -115,7 +122,7 @@ export class Account {
         tokenAddress = transferTx.tokenAdress;
         tokenSymbol = transferTx.symbol;
         tokenPath = transferTx.status;
-        if (tokenAddress in this.balanceHistory) {
+        if (tokenAddress in this.balanceHistory.tokenHistories) {
           //current = ;
           this.balanceHistory.tokenHistories[tokenAddress].numberOfTx += 1;
         } else {
@@ -130,10 +137,6 @@ export class Account {
             performanceUSD: 0,
           };
         }
-        //Ex: check what are the transfers when I interact with VetMe token
-        // if (tokenAddress == "0xe7eF051C6EA1026A70967E8F04da143C67Fa4E1f") {
-        //   console.log(transferTxSummary);
-        // }
         let index = transferTxSummary.indexOf(transferTx);
         if (index > -1) {
           transferTxSummary.splice(index, 1);
@@ -146,7 +149,6 @@ export class Account {
       return;
     }
     let pairDiffETH: boolean = false;
-    //TODO: remove tx from array when it is process ?
     for (let transferTx of transferTxSummary) {
       if (transferTx?.status) {
         let pairType: "ETH" | "USD" = OneContainsStrings(transferTx.symbol, [
@@ -193,6 +195,14 @@ export class Account {
         if (!transferTx?.status && tokenAddress !== transferTx.tokenAdress) {
           // WE HAVE TO MAKE SURE IT'S WETH SO WE ARE GOING TO DO AND =/= from token
           // BUT IT CAN BE WHATEVER SO, WE HAVE TO DO, == WETH adrr (in db).
+          // Dans le cas d'un trading avec du WETH : si le transfer n'est pas directement fait au compte;
+          // Alors on fait l'hypothèse que ce qui est tradé dans les transferts logs AUTRE que le token
+          // C'est la paire et elle fait le sens inverse du trade du token
+          // So we don't have a transfer status (undefined)
+          if (transferTx.blockNumber == 19197966) {
+            console.log(transferTx);
+            console.log("Path :" + tokenPath);
+          }
           this.balanceHistory.tokenHistories[tokenAddress].pair = "ETH";
           let amount = Number(transferTx.amount);
           if (tokenPath === "IN") {
@@ -208,6 +218,7 @@ export class Account {
         }
       }
     }
+    console.log(this.balanceHistory.tokenHistories[tokenAddress]);
   }
 
   getAccountTransaction(txhash: string) {
@@ -218,10 +229,16 @@ export class Account {
     }
   }
 
-  async getAccountTransactions() {
-    // const results = [];
+  async getAccountTransactions(timestamp: number) {
+    let usedTimestamp: number = this.updateTimestamp(timestamp);
+    console.log(usedTimestamp);
+    const decreasedOrderTxList = this.transactionList;
 
-    for (let transaction of this.transactionList) {
+    for (let transaction of decreasedOrderTxList.reverse()) {
+      if (usedTimestamp > Number(transaction.timeStamp)) {
+        break;
+      }
+      console.log(transaction.timeStamp);
       try {
         const transactionSummary = await this.getTransactionTransferSummary(
           transaction
@@ -229,17 +246,26 @@ export class Account {
         await this.updateBalances({
           transferTxSummary: [...transactionSummary],
         });
-        return this.balanceHistory;
-        // const result = { hash: transaction.hash, logs: logs };
-        // results.push(result);
       } catch (error) {
         console.error(
           `Error processing transaction ${transaction.hash}:`,
           error
         );
-        // results.push({ hash: transaction.hash, error: error.message });
       }
     }
+
+    //Update timestamp
+    if (
+      !this.balanceHistory.summary.startAnalysisTimestamp ||
+      this.balanceHistory.summary.startAnalysisTimestamp < timestamp
+    ) {
+      this.balanceHistory.summary.startAnalysisTimestamp = timestamp;
+    }
+    this.balanceHistory.summary.lastAnalysisTimestamp = Math.floor(
+      Date.now() / 1000
+    );
+
+    this.updateSummary();
 
     try {
       fs.promises.writeFile(
@@ -248,6 +274,19 @@ export class Account {
       );
     } catch (error) {
       throw Error("Error writing to file");
+    }
+    return this.balanceHistory;
+  }
+
+  updateSummary() {
+    this.balanceHistory.summary.numberOfTxs = 0;
+    this.balanceHistory.summary.numberOfTokensTraded = 0;
+    this.balanceHistory.summary.performanceUSD = 0;
+    for (const address of Object.keys(this.balanceHistory.tokenHistories)) {
+      const tokenHistory = this.balanceHistory.tokenHistories[address];
+      this.balanceHistory.summary.numberOfTxs += tokenHistory.numberOfTx;
+      this.balanceHistory.summary.numberOfTokensTraded += 1;
+      this.balanceHistory.summary.performanceUSD += tokenHistory.performanceUSD;
     }
   }
 
@@ -315,5 +354,19 @@ export class Account {
       }
       return [];
     }
+  }
+
+  updateTimestamp(timestamp: number): number {
+    let usedTimestamp: number = timestamp;
+    this.balanceHistory.summary.lastAnalysisTimestamp;
+    this.balanceHistory.summary.startAnalysisTimestamp;
+    if (
+      this.balanceHistory.summary.startAnalysisTimestamp &&
+      this.balanceHistory.summary.lastAnalysisTimestamp &&
+      usedTimestamp > this.balanceHistory.summary.startAnalysisTimestamp
+    ) {
+      usedTimestamp = this.balanceHistory.summary.lastAnalysisTimestamp;
+    }
+    return usedTimestamp;
   }
 }

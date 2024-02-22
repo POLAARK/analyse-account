@@ -10,8 +10,8 @@ type OhlcEntry = {
   price_close: number;
 };
 
+//TODO : automatical OHCL data update from last timestamp;
 export function getETHtoUSD(valueInETH: number, timestamp: number) {
-  //TODO: implement the ETH to USD.
   const data = fs.readFileSync("src/../data/total_ohlc_ETH.json", "utf8");
   const entries: OhlcEntry[] = JSON.parse(data).reverse();
 
@@ -33,10 +33,10 @@ export function determineTransactionType(
   accountAddress: string,
   parsedLog: LogDescription
 ): "IN" | "OUT" {
-  if (parsedLog.args[0] == accountAddress) {
+  if (parsedLog.args[0].toUpperCase() == accountAddress.toUpperCase()) {
     return "OUT";
   }
-  if (parsedLog.args[1] == accountAddress) {
+  if (parsedLog.args[1].toUpperCase() == accountAddress.toUpperCase()) {
     return "IN";
   }
   return;

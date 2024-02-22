@@ -1,14 +1,14 @@
 import {
-  CommandInteraction,
   SlashCommandBuilder,
   AttachmentBuilder,
+  Interaction,
+  CommandInteraction,
 } from "discord.js";
 import * as fs from "fs";
-import { TokenHistory } from "src/model/historical-token-trading";
 import { Account } from "../account/Account";
 import { TransactionStreamer } from "../streamer/TransactionStreamer";
-import path from "path";
-// import { ApiDebank } from './modules/api-endpoints/ApiForkDebank.js';
+import path, { dirname } from "path";
+import { fileURLToPath } from "url";
 
 export default {
   data: new SlashCommandBuilder()
@@ -26,32 +26,34 @@ export default {
         .setDescription("Since when we cant to analyse this wallet timestamp")
         .setRequired(false)
     ),
-  async execute(interaction) {
-    const wallet: string = interaction.options.getString("target");
-    const timestamp: number =
-      interaction.options.getNumber("timestamp") ??
-      Date.now() / 1000 - 365 * 24 * 60 * 60 + (365 * 24 * 60 * 60) / 2;
+  async execute(interaction: CommandInteraction) {
+    const wallet = interaction.options.get("target", true).value;
+
+    const timestampValue = interaction.options.get("timestamp")?.value;
+    const timestamp = Number(
+      timestampValue
+        ? timestampValue
+        : Date.now() / 1000 - 365 * 24 * 60 * 60 + (365 * 24 * 60 * 60) / 2
+    );
     await interaction.reply("Analyse started");
-    const account = new Account(wallet);
+    const account = new Account(String(wallet));
 
     const streamer = new TransactionStreamer([account]);
-    streamer.builtAccountTransactionHistory(timestamp);
-    const walletBalanceHistory = account.getAccountTransactions();
+    streamer.builtAccountTransactionHistory();
+    await account.getAccountTransactions(timestamp);
 
-    const jsonString = JSON.stringify(this.data, null, 2);
-
-    const filename = `${this.address}_analysis.json`;
+    const filename = `../../../data/histories/${wallet}History.json`;
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
     const filepath = path.join(__dirname, filename);
-    fs.writeFileSync(filepath, jsonString);
 
-    const attachment = new AttachmentBuilder(filepath, { name: filename });
+    const attachment = new AttachmentBuilder(filepath, {
+      name: `${wallet}History.json`,
+    });
 
-    await interaction.reply({
+    await interaction.editReply({
       content: "Here is the analysis:",
       files: [attachment],
     });
-
-    fs.unlinkSync(filepath);
-    await interaction.reply(walletBalanceHistory);
   },
 };

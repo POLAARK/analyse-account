@@ -1,5 +1,5 @@
 import { EtherscanProvider, Networkish, BlockTag } from "ethers"; //^v6
-import { fetchHttpJson } from "../../utils/fetchUtils.js";
+import { fetchHttpJson } from "../../utils/fetchUtils";
 
 export default class MyEtherscanProvider {
   #API_KEYS: string;
