@@ -1,12 +1,4 @@
-import {
-  Contract,
-  Interface,
-  JsonRpcProvider,
-  LogDescription,
-  TransactionResponse,
-  ethers,
-  formatEther,
-} from "ethers";
+import { Contract, Interface, JsonRpcProvider, LogDescription, ethers } from "ethers";
 import {
   TransactionList,
   TransactionResponseExtended,
@@ -23,9 +15,10 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 import { config } from "dotenv";
-import { BalanceHistory, TokenHistory } from "./account.entity";
+import { BalanceHistory } from "./account.entity";
 import { OneContainsStrings, containsUsdOrEth } from "../../utils/stringUtils";
-
+import { logger } from "../config /logger";
+import { EtherscanTransaction } from "src/model/etherscanHistory";
 interface TokenTransactions {
   transactionList: TransactionList[];
   performanceETH: number;
@@ -34,7 +27,7 @@ interface TokenTransactions {
 config({ path: "src/../.env" });
 export class Account {
   jsonRpcProvider: JsonRpcProvider;
-  transactionList: TransactionResponseExtended[] = [];
+  transactionList: EtherscanTransaction[] = [];
   address: string;
   lastBlockUpdate: number = 0;
   balanceHistory: BalanceHistory;
@@ -56,12 +49,8 @@ export class Account {
 
     if (fs.existsSync(walletfilePath)) {
       const data = JSON.parse(fs.readFileSync(walletfilePath, "utf8"));
-      this.lastBlockUpdate = data.lastBlockUpdated
-        ? data.lastBlockUpdated
-        : this.lastBlockUpdate;
-      this.transactionList = data.transactionsList
-        ? data.transactionsList
-        : this.transactionList;
+      this.lastBlockUpdate = data.lastBlockUpdated ? data.lastBlockUpdated : this.lastBlockUpdate;
+      this.transactionList = data.transactionsList ? data.transactionsList : this.transactionList;
     }
 
     this.historyFilePath = path.join(
@@ -71,9 +60,7 @@ export class Account {
     );
 
     if (fs.existsSync(this.historyFilePath)) {
-      this.balanceHistory = JSON.parse(
-        fs.readFileSync(this.historyFilePath, "utf8")
-      );
+      this.balanceHistory = JSON.parse(fs.readFileSync(this.historyFilePath, "utf8"));
     } else {
       this.balanceHistory = {
         summary: {
@@ -85,10 +72,7 @@ export class Account {
         },
         tokenHistories: {},
       };
-      fs.promises.writeFile(
-        this.historyFilePath,
-        JSON.stringify(this.balanceHistory)
-      );
+      fs.promises.writeFile(this.historyFilePath, JSON.stringify(this.balanceHistory));
     }
   }
 
@@ -98,23 +82,11 @@ export class Account {
     return await this.getTransactionTransferSummary(tx);
   }
 
-  async updateBalances({
-    transferTxSummary,
-  }: {
-    transferTxSummary: TransferTx[];
-  }) {
+  async updateBalances({ transferTxSummary }: { transferTxSummary: TransferTx[] }) {
     let tokenSymbol: string = "";
     let tokenAddress: string = "";
     let tokenPath: "IN" | "OUT" | undefined;
     for (let transferTx of transferTxSummary) {
-      if (
-        transferTx.tokenAdress ==
-          "0x508E00D5ceF397B02d260D035e5EE80775e4C821" ||
-        transferTx.tokenAdress ==
-          "0x508E00D5ceF397B02d260D035e5EE80775e4C821".toUpperCase()
-      ) {
-        console.log(transferTx);
-      }
       // NOTE: FOR NOW WE REMOVE INNER TRANSFERS THAT HAVE NO INTERACTION WITH ACCOUNT
       if (transferTx?.status && !containsUsdOrEth(transferTx.symbol)) {
         //The whole is used just to determine which token has been interacted/traded with
@@ -144,53 +116,48 @@ export class Account {
         break;
       }
     }
+    logger.info(tokenPath);
     //May be we didn't find a token address (meaning we interacted with no token in the transaction)
     if (tokenAddress == "") {
       return;
     }
-    let pairDiffETH: boolean = false;
+
+    let pairType: "ETH" | "USD" | null;
     for (let transferTx of transferTxSummary) {
       if (transferTx?.status) {
-        let pairType: "ETH" | "USD" = OneContainsStrings(transferTx.symbol, [
-          "usd",
-        ])
+        pairType = OneContainsStrings(transferTx.symbol, ["usd"])
           ? "USD"
           : OneContainsStrings(transferTx.symbol, ["eth"])
           ? "ETH"
           : null;
-        if (pairType) {
-          pairDiffETH = true;
-          this.balanceHistory.tokenHistories[tokenAddress].pair = pairType;
-          let amount = Number(transferTx.amount);
-          if (pairType == "ETH") {
-            if (transferTx.status === "IN") {
-              this.balanceHistory.tokenHistories[tokenAddress].EthGained +=
-                amount;
-              this.balanceHistory.tokenHistories[tokenAddress].performanceUSD +=
-                getETHtoUSD(amount, transferTx.timestamp);
-            } else if (transferTx.status === "OUT") {
-              this.balanceHistory.tokenHistories[tokenAddress].EThSpent +=
-                amount;
-              this.balanceHistory.tokenHistories[tokenAddress].performanceUSD -=
-                getETHtoUSD(amount, transferTx.timestamp);
-            }
-          } else {
-            if (transferTx.status === "IN") {
-              this.balanceHistory.tokenHistories[tokenAddress].pairGained +=
-                amount;
-              this.balanceHistory.tokenHistories[tokenAddress].performanceUSD +=
-                amount;
-            } else if (transferTx.status === "OUT") {
-              this.balanceHistory.tokenHistories[tokenAddress].pairSpent +=
-                amount;
-              this.balanceHistory.tokenHistories[tokenAddress].performanceUSD -=
-                amount;
-            }
+        this.balanceHistory.tokenHistories[tokenAddress].pair = pairType;
+        let amount = Number(transferTx.amount);
+        if (pairType == "ETH") {
+          if (transferTx.status === "IN") {
+            this.balanceHistory.tokenHistories[tokenAddress].EthGained += amount;
+            this.balanceHistory.tokenHistories[tokenAddress].performanceUSD += getETHtoUSD(
+              amount,
+              transferTx.timestamp
+            );
+          } else if (transferTx.status === "OUT") {
+            this.balanceHistory.tokenHistories[tokenAddress].EThSpent += amount;
+            this.balanceHistory.tokenHistories[tokenAddress].performanceUSD -= getETHtoUSD(
+              amount,
+              transferTx.timestamp
+            );
+          }
+        } else {
+          if (transferTx.status === "IN") {
+            this.balanceHistory.tokenHistories[tokenAddress].pairGained += amount;
+            this.balanceHistory.tokenHistories[tokenAddress].performanceUSD += amount;
+          } else if (transferTx.status === "OUT") {
+            this.balanceHistory.tokenHistories[tokenAddress].pairSpent += amount;
+            this.balanceHistory.tokenHistories[tokenAddress].performanceUSD -= amount;
           }
         }
       }
     }
-    if (!pairDiffETH) {
+    if (!pairType) {
       for (let transferTx of transferTxSummary) {
         if (!transferTx?.status && tokenAddress !== transferTx.tokenAdress) {
           // WE HAVE TO MAKE SURE IT'S WETH SO WE ARE GOING TO DO AND =/= from token
@@ -199,26 +166,54 @@ export class Account {
           // Alors on fait l'hypothèse que ce qui est tradé dans les transferts logs AUTRE que le token
           // C'est la paire et elle fait le sens inverse du trade du token
           // So we don't have a transfer status (undefined)
-          if (transferTx.blockNumber == 19197966) {
-            console.log(transferTx);
-            console.log("Path :" + tokenPath);
-          }
+
+          // if (transferTx.blockNumber == 19197966) {
+          //   logger.info(transferTx);
+          //   logger.info("Path :" + tokenPath);
+          // }
+
           this.balanceHistory.tokenHistories[tokenAddress].pair = "ETH";
           let amount = Number(transferTx.amount);
+          // Here we break the loop for sure because we assume that whatever the transfer the amount transfered is the full amount of the transfer
+          // TODO: Explore this idea. To check for proper transfer we have to check for transaction to or from the address of previous transfer
+          // in the same block
+          // Or check if transfer corresponds to same amount
+          // Or check if transfers has same from to with different amount then it is an other transfer that give us the total value
           if (tokenPath === "IN") {
-            this.balanceHistory.tokenHistories[tokenAddress].EThSpent += amount;
-            this.balanceHistory.tokenHistories[tokenAddress].performanceUSD -=
-              getETHtoUSD(amount, transferTx.timestamp);
+            if (OneContainsStrings(transferTx.symbol, ["usd"])) {
+              this.balanceHistory.tokenHistories[tokenAddress].pairSpent += amount;
+              this.balanceHistory.tokenHistories[tokenAddress].performanceUSD -= amount;
+              break;
+            }
+            if (OneContainsStrings(transferTx.symbol, ["eth"])) {
+              this.balanceHistory.tokenHistories[tokenAddress].EThSpent += amount;
+              this.balanceHistory.tokenHistories[tokenAddress].performanceUSD -= getETHtoUSD(
+                amount,
+                transferTx.timestamp
+              );
+              break;
+            }
           } else if (tokenPath === "OUT") {
-            this.balanceHistory.tokenHistories[tokenAddress].EthGained +=
-              amount;
-            this.balanceHistory.tokenHistories[tokenAddress].performanceUSD +=
-              getETHtoUSD(amount, transferTx.timestamp);
+            if (OneContainsStrings(transferTx.symbol, ["usd"])) {
+              this.balanceHistory.tokenHistories[tokenAddress].pairGained += amount;
+              this.balanceHistory.tokenHistories[tokenAddress].performanceUSD += amount;
+              break;
+            }
+            if (OneContainsStrings(transferTx.symbol, ["eth"])) {
+              this.balanceHistory.tokenHistories[tokenAddress].EthGained += amount;
+              this.balanceHistory.tokenHistories[tokenAddress].performanceUSD += getETHtoUSD(
+                amount,
+                transferTx.timestamp
+              );
+              break;
+            }
           }
         }
       }
     }
-    console.log(this.balanceHistory.tokenHistories[tokenAddress]);
+    logger.info(transferTxSummary);
+    logger.info("---------------");
+    logger.info(this.balanceHistory.tokenHistories[tokenAddress]);
   }
 
   getAccountTransaction(txhash: string) {
@@ -231,26 +226,19 @@ export class Account {
 
   async getAccountTransactions(timestamp: number) {
     let usedTimestamp: number = this.updateTimestamp(timestamp);
-    console.log(usedTimestamp);
     const decreasedOrderTxList = this.transactionList;
 
     for (let transaction of decreasedOrderTxList.reverse()) {
       if (usedTimestamp > Number(transaction.timeStamp)) {
         break;
       }
-      console.log(transaction.timeStamp);
       try {
-        const transactionSummary = await this.getTransactionTransferSummary(
-          transaction
-        );
+        const transactionSummary = await this.getTransactionTransferSummary(transaction);
         await this.updateBalances({
           transferTxSummary: [...transactionSummary],
         });
       } catch (error) {
-        console.error(
-          `Error processing transaction ${transaction.hash}:`,
-          error
-        );
+        console.error(`Error processing transaction ${transaction.hash}:`, error);
       }
     }
 
@@ -261,17 +249,12 @@ export class Account {
     ) {
       this.balanceHistory.summary.startAnalysisTimestamp = timestamp;
     }
-    this.balanceHistory.summary.lastAnalysisTimestamp = Math.floor(
-      Date.now() / 1000
-    );
+    this.balanceHistory.summary.lastAnalysisTimestamp = Math.floor(Date.now() / 1000);
 
     this.updateSummary();
 
     try {
-      fs.promises.writeFile(
-        this.historyFilePath,
-        JSON.stringify(this.balanceHistory, null, 2)
-      );
+      fs.promises.writeFile(this.historyFilePath, JSON.stringify(this.balanceHistory, null, 2));
     } catch (error) {
       throw Error("Error writing to file");
     }
@@ -291,15 +274,14 @@ export class Account {
   }
 
   async getTransactionTransferSummary(
-    tx: TransactionResponseExtended
+    tx: TransactionResponseExtended | EtherscanTransaction
   ): Promise<TransferTx[]> {
-    // console.log("Processing transaction hash:", tx.hash); // Log the transaction hash
+    // logger.info("Processing transaction hash:", tx.hash); // Log the transaction hash
     const interfaceERC20 = new Interface(erc20);
 
     try {
       // Get transaction receipt
-      const transactionReceipt =
-        await this.jsonRpcProvider.getTransactionReceipt(tx.hash);
+      const transactionReceipt = await this.jsonRpcProvider.getTransactionReceipt(tx.hash);
 
       //Loop through Log :
       let transferTxSummary: TransferTx[] = [];
@@ -311,11 +293,7 @@ export class Account {
           topics: [...log.topics],
         };
         let contractERC20: Contract;
-        contractERC20 = new ethers.Contract(
-          log.address,
-          erc20,
-          this.jsonRpcProvider
-        );
+        contractERC20 = new ethers.Contract(log.address, erc20, this.jsonRpcProvider);
         const parsedLog: LogDescription = interfaceERC20.parseLog(logCopy);
         let tokenDecimals: bigint;
 
@@ -330,15 +308,10 @@ export class Account {
         if (parsedLog?.name && parsedLog.name === "Transfer") {
           let transferTx: TransferTx = {
             blockNumber: tx.blockNumber,
-            timestamp: parseInt(tx?.timeStamp),
+            timestamp: parseInt(tx?.timeStamp.toString()),
             tokenAdress: log.address,
-            amount: BigIntDivisionForAmount(
-              parsedLog.args[2] as bigint,
-              10n ** tokenDecimals
-            ),
-            symbol: contractERC20.symbol
-              ? ((await contractERC20.symbol()) as string)
-              : undefined,
+            amount: BigIntDivisionForAmount(parsedLog.args[2] as bigint, 10n ** tokenDecimals),
+            symbol: contractERC20.symbol ? ((await contractERC20.symbol()) as string) : undefined,
             status: determineTransactionType(this.address, parsedLog),
           };
           transferTxSummary.push(transferTx);

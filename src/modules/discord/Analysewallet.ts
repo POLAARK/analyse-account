@@ -15,10 +15,7 @@ export default {
     .setName("analysewallet")
     .setDescription("Analyse a wallet performance")
     .addStringOption((option) =>
-      option
-        .setName("target")
-        .setDescription("The wallet to analyse")
-        .setRequired(true)
+      option.setName("target").setDescription("The wallet to analyse").setRequired(true)
     )
     .addNumberOption((option) =>
       option

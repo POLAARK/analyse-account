@@ -1,10 +1,4 @@
-import {
-  Block,
-  EtherscanProvider,
-  JsonRpcProvider,
-  TransactionResponse,
-  ethers,
-} from "ethers";
+import { Block, EtherscanProvider, JsonRpcProvider, TransactionResponse, ethers } from "ethers";
 import { Account } from "../account/Account";
 import path from "path";
 import fs from "fs";
@@ -12,30 +6,21 @@ import { fileURLToPath } from "url";
 import { config } from "dotenv";
 import MyEtherscanProvider from "../etherscanProvider/etherscanProvider";
 import { TransactionResponseExtended } from "../transaction/transaction.entity";
+import { EtherscanTransaction } from "src/model/etherscanHistory";
 
 config({ path: "src/../.env" });
 export class TransactionStreamer {
-  jsonRpcProvider: JsonRpcProvider = new JsonRpcProvider(
-    process.env.JSON_URL,
-    "mainnet"
-  );
-  etherscanProvider: MyEtherscanProvider = new MyEtherscanProvider(
-    process.env.ETHERSCAN_API_KEY
-  );
+  jsonRpcProvider: JsonRpcProvider = new JsonRpcProvider(process.env.JSON_URL, "mainnet");
+  etherscanProvider: MyEtherscanProvider = new MyEtherscanProvider(process.env.ETHERSCAN_API_KEY);
   accountList: Set<Account>;
   __dirname: string = path.dirname(fileURLToPath(import.meta.url));
   constructor(accountList: Account[]) {
     this.accountList = new Set(accountList);
   }
 
-  async builtAccountTransactionHistory(
-    lastBlock?: number,
-    startBlock?: number
-  ) {
+  async builtAccountTransactionHistory(lastBlock?: number, startBlock?: number) {
     try {
-      const latest = lastBlock
-        ? lastBlock
-        : await this.jsonRpcProvider.getBlockNumber();
+      const latest = lastBlock ? lastBlock : await this.jsonRpcProvider.getBlockNumber();
 
       for (let account of this.accountList) {
         const filePath = path.join(
@@ -56,18 +41,11 @@ export class TransactionStreamer {
         }
         const history = await this.etherscanProvider.getNormalTransactions(
           account.address,
-          account.lastBlockUpdate
-            ? account.lastBlockUpdate + 1
-            : startBlock
-            ? startBlock
-            : 0,
+          account.lastBlockUpdate ? account.lastBlockUpdate + 1 : startBlock ? startBlock : 0,
           latest
         );
-        history.forEach((tx: TransactionResponseExtended, index: number) => {
-          if (
-            index == history.length - 1 &&
-            tx.blockNumber > account.lastBlockUpdate
-          ) {
+        history.forEach((tx: EtherscanTransaction, index: number) => {
+          if (index == history.length - 1 && tx.blockNumber > account.lastBlockUpdate) {
             account.lastBlockUpdate = tx.blockNumber;
           }
 
@@ -88,29 +66,13 @@ export class TransactionStreamer {
     } catch (error) {
       throw Error(error);
     }
-    // arbitrary 1000 block
-
-    // for (let i = latestBlock; i >= end; i--) { // Example: last 1000 blocks
-    //     console.log(i)
-    //     const block: Block = await this.jsonRpcProvider.getBlock(i, true);
-    //     console.log(block);
-    //     block.prefetchedTransactions.forEach(async transaction => {
-    //         for (let account of this.accountList) {
-    //             if ((transaction.from === account.address || transaction.to === account.address) && account.lastBlockUpdate <= i) {
-    //                 account.transactionList.push(transaction);
-    //                 account.lastBlockUpdate = i;
-    //             }
-    //         }
-    //     });
-
-    // }
   }
+
   addAccountsToStreamer(accountList: Account[]) {
     for (let account of accountList) {
       if (this.accountList.has(account)) {
         throw new Error(
-          "Account already in list, here is the list " +
-            Array.from(this.accountList).toString()
+          "Account already in list, here is the list " + Array.from(this.accountList).toString()
         );
       } else {
         this.accountList.add(account);

@@ -3,6 +3,7 @@ import { config } from "dotenv";
 import fs from "node:fs";
 import path, { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { logger } from "./modules/config /logger";
 
 config({ path: "src/../.env" });
 const token = process.env.DISCORD_TOKEN;
@@ -15,19 +16,17 @@ const commands = [];
 // Grab all the command folders from the commands directory you created earlier
 const foldersPath = path.join(__dirname, "./modules/discord");
 
-const commandFiles = fs
-  .readdirSync(foldersPath)
-  .filter((file) => file.endsWith(".ts"));
+const commandFiles = fs.readdirSync(foldersPath).filter((file) => file.endsWith(".ts"));
 
 for (const file of commandFiles) {
   const filePath = path.join(foldersPath, file);
-  console.log(filePath);
+  logger.info(filePath);
   const command = await import(filePath);
-  // console.log(command);
+  // logger.info(command);
   if ("data" in command.default && "execute" in command.default) {
     commands.push(command.default.data.toJSON());
   } else {
-    console.log(
+    logger.info(
       `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`
     );
   }
@@ -39,22 +38,15 @@ const rest = new REST().setToken(token);
 // and deploy your commands!
 (async () => {
   try {
-    console.log(
-      `Started refreshing ${commands.length} application (/) commands.`
-    );
+    logger.info(`Started refreshing ${commands.length} application (/) commands.`);
 
     // The put method is used to fully refresh all commands in the guild with the current set
-    const data: any = await rest.put(
-      Routes.applicationGuildCommands(clientId, guildId),
-      {
-        body: commands,
-      }
-    );
+    const data: any = await rest.put(Routes.applicationGuildCommands(clientId, guildId), {
+      body: commands,
+    });
     // .catch(() => {});
 
-    console.log(
-      `Successfully reloaded ${data.length} application (/) commands.`
-    );
+    logger.info(`Successfully reloaded ${data.length} application (/) commands.`);
   } catch (error) {
     // And of course, make sure you catch and log any errors!
     console.error(error);

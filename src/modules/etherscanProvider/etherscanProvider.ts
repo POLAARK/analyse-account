@@ -1,5 +1,7 @@
 import { EtherscanProvider, Networkish, BlockTag } from "ethers"; //^v6
 import { fetchHttpJson } from "../../utils/fetchUtils";
+import { logger } from "../config /logger";
+import { EtherscanHistory, EtherscanTransaction } from "../../model/etherscanHistory";
 
 export default class MyEtherscanProvider {
   #API_KEYS: string;
@@ -18,7 +20,7 @@ export default class MyEtherscanProvider {
     startBlock: number,
     endBlock: number = 99999999,
     offset: number = 2000
-  ) {
+  ): Promise<EtherscanTransaction[]> {
     const count = 0;
     const parameters =
       `api` +
@@ -36,7 +38,7 @@ export default class MyEtherscanProvider {
       response = await fetchHttpJson(this.#endpoint + parameters);
     } catch (error) {
       if (error.statusCode === 429 || error.message.includes("rate limit")) {
-        console.log("Rate limit reached, retrying in 15 minutes...");
+        logger.error("Rate limit reached, retrying in 15 minutes...");
         await new Promise((resolve) => setTimeout(resolve, 900000));
         response = await fetchHttpJson(this.#endpoint + parameters);
       } else {
@@ -44,19 +46,89 @@ export default class MyEtherscanProvider {
       }
     }
     if (response.message == "No transactions found") {
-      console.log("No transaction found for this chain : " + this.#endpoint);
+      logger.error("No transaction found for this chain : " + this.#endpoint);
     } else {
       if (response.status !== "1" || response.message !== "OK") {
-        console.log(response);
+        logger.error(response);
         throw new Error(
-          `error getNormalTransactions (network : ${
-            this.#endpoint
-          } / address : ${address}) -> ${response.message}`
+          `error getNormalTransactions (network : ${this.#endpoint} / address : ${address}) -> ${
+            response.message
+          }`
         );
       }
     }
 
     return response.result;
   }
-  ç;
+
+  async getInternalTransactions(
+    address: string,
+    startBlock: number,
+    endBlock: number = 99999999,
+    offset: number = 2000
+  ): Promise<EtherscanTransaction[]> {
+    const count = 0;
+    const parameters =
+      `api` +
+      `?module=account` +
+      `&action=txlistinternal` +
+      `&address=${address}` +
+      `&startblock=${startBlock}` +
+      `&endblock=${endBlock}` +
+      `&page=1` +
+      `&offset=${offset}` +
+      `&sort=asc` +
+      `&apikey=${this.#API_KEYS}`;
+    let response: any;
+    try {
+      response = await fetchHttpJson(this.#endpoint + parameters);
+    } catch (error) {
+      if (error.statusCode === 429 || error.message.includes("rate limit")) {
+        logger.error("Rate limit reached, retrying in 15 minutes...");
+        await new Promise((resolve) => setTimeout(resolve, 900000));
+        response = await fetchHttpJson(this.#endpoint + parameters);
+      } else {
+        throw Error(error);
+      }
+    }
+    if (response.message == "No transactions found") {
+      logger.error("No transaction found for this chain : " + this.#endpoint);
+    } else {
+      if (response.status !== "1" || response.message !== "OK") {
+        logger.error(response);
+        throw new Error(
+          `error getInternalTransactions (network : ${this.#endpoint} / address : ${address}) -> ${
+            response.message
+          }`
+        );
+      }
+    }
+    return response.result;
+  }
+
+  async constructGlobalTransactionHistory(
+    address: string,
+    startBlock: number,
+    endBlock: number = 99999999,
+    offset: number = 2000
+  ): Promise<EtherscanTransaction[]> {
+    const normalTransactionhistory = await this.getNormalTransactions(
+      address,
+      startBlock,
+      endBlock,
+      offset
+    );
+    const internalTransactionhistory = await this.getInternalTransactions(
+      address,
+      startBlock,
+      endBlock,
+      offset
+    );
+    const accountTransactionHistory: EtherscanTransaction[] = [
+      ...normalTransactionhistory,
+      ...internalTransactionhistory,
+    ].sort((a, b) => a.timeStamp - b.timeStamp);
+
+    return accountTransactionHistory;
+  }
 }

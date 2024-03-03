@@ -19,9 +19,7 @@ const channelId = process.env.CHANNEL_ID;
 client.commands = new Collection();
 
 const commandsPath = "src/modules/discord/";
-const commandFiles = fs
-  .readdirSync(commandsPath)
-  .filter((file) => file.endsWith(".ts"));
+const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith(".ts"));
 
 for (const file of commandFiles) {
   const filePath = path.join(commandsPath, file);
@@ -30,7 +28,7 @@ for (const file of commandFiles) {
   if ("data" in command && "execute" in command) {
     client.commands.set(command.data.name, command);
   } else {
-    console.log(
+    logger.info(
       `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`
     );
   }
@@ -42,7 +40,7 @@ client.on("ready", async () => {
 
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) {
-    console.log(interaction);
+    logger.info(interaction);
     return;
   }
 
