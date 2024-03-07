@@ -2,6 +2,7 @@ import { Account } from "./modules/account/Account.js";
 import { TransactionStreamer } from "./modules/streamer/TransactionStreamer.js";
 const account = new Account("0xee98c1feb5946b83ffcb787048c90dd392217be2");
 const streamer = new TransactionStreamer([account]);
+// await streamer.builtAccountTransactionHistory();
 for (let transaction of account.transactionList) {
   if (transaction.blockNumber == 18932173) {
     const transactionTransferSummary = await account.getTransactionTransferSummary(transaction);

@@ -39,7 +39,7 @@ export class TransactionStreamer {
             ? data.transactionsList
             : account.transactionList;
         }
-        const history = await this.etherscanProvider.getNormalTransactions(
+        const history = await this.etherscanProvider.constructGlobalTransactionHistory(
           account.address,
           account.lastBlockUpdate ? account.lastBlockUpdate + 1 : startBlock ? startBlock : 0,
           latest
