@@ -36,7 +36,7 @@ export default {
     const account = new Account(String(wallet));
 
     const streamer = new TransactionStreamer([account]);
-    streamer.builtAccountTransactionHistory();
+    await streamer.builtAccountTransactionHistory();
     await account.getAccountTransactions(timestamp);
 
     const filename = `../../../data/histories/${wallet}History.json`;

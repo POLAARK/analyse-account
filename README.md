@@ -15,10 +15,9 @@ add filters :
 -Check number token held / holds
 
 TODO:
-
-winston logging
-For the checking of ETH price: take the timestamp of the transation and then look to what is the closest to the number as a multiple of 60.
-Or just looping through the file and then the first higher we check take the one just before and the average between open/close
+Multiples RPC and when an error send to an other RPC
+Multi processing for it to be faster
+Lock on file
 
 ## Update balance logic
 

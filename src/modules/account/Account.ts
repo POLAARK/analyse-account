@@ -116,7 +116,6 @@ export class Account {
         break;
       }
     }
-    logger.info(tokenPath);
     //May be we didn't find a token address (meaning we interacted with no token in the transaction)
     if (tokenAddress == "") {
       return;
@@ -146,7 +145,7 @@ export class Account {
               transferTx.timestamp
             );
           }
-        } else {
+        } else if (pairType) {
           if (transferTx.status === "IN") {
             this.balanceHistory.tokenHistories[tokenAddress].pairGained += amount;
             this.balanceHistory.tokenHistories[tokenAddress].performanceUSD += amount;
@@ -166,11 +165,6 @@ export class Account {
           // Alors on fait l'hypothèse que ce qui est tradé dans les transferts logs AUTRE que le token
           // C'est la paire et elle fait le sens inverse du trade du token
           // So we don't have a transfer status (undefined)
-
-          // if (transferTx.blockNumber == 19197966) {
-          //   logger.info(transferTx);
-          //   logger.info("Path :" + tokenPath);
-          // }
 
           this.balanceHistory.tokenHistories[tokenAddress].pair = "ETH";
           let amount = Number(transferTx.amount);
@@ -276,7 +270,6 @@ export class Account {
   async getTransactionTransferSummary(
     tx: TransactionResponseExtended | EtherscanTransaction
   ): Promise<TransferTx[]> {
-    // logger.info("Processing transaction hash:", tx.hash); // Log the transaction hash
     const interfaceERC20 = new Interface(erc20);
 
     try {
@@ -296,7 +289,6 @@ export class Account {
         contractERC20 = new ethers.Contract(log.address, erc20, this.jsonRpcProvider);
         const parsedLog: LogDescription = interfaceERC20.parseLog(logCopy);
         let tokenDecimals: bigint;
-
         //No decimals ? decimals = 18
         try {
           tokenDecimals = await contractERC20.decimals();
@@ -310,13 +302,40 @@ export class Account {
             blockNumber: tx.blockNumber,
             timestamp: parseInt(tx?.timeStamp.toString()),
             tokenAdress: log.address,
-            amount: BigIntDivisionForAmount(parsedLog.args[2] as bigint, 10n ** tokenDecimals),
+            from: parsedLog.args[0],
+            to: parsedLog.args[1],
+            amount: Number(
+              BigIntDivisionForAmount(parsedLog.args[2] as bigint, 10n ** tokenDecimals)
+            ),
             symbol: contractERC20.symbol ? ((await contractERC20.symbol()) as string) : undefined,
             status: determineTransactionType(this.address, parsedLog),
           };
           transferTxSummary.push(transferTx);
         }
       }
+
+      // If same token, from, to, aggregate the transaction
+      // Is same token, from AND no status (could no determine where it goes) aggregate
+      // TODO : does that creates problems
+      let aggregatedTransactions = {};
+      transferTxSummary.forEach((tx) => {
+        let key1 = `${tx.tokenAdress}-${tx.from}`;
+        let key2 = `${tx.tokenAdress}-${tx.from}-${tx.to}`;
+
+        if (tx.status) {
+          if (!aggregatedTransactions[key2]) {
+            aggregatedTransactions[key2] = { ...tx, amount: 0 };
+          }
+          aggregatedTransactions[key2].amount += tx.amount;
+        } else {
+          if (!aggregatedTransactions[key1]) {
+            aggregatedTransactions[key1] = { ...tx, amount: 0 };
+          }
+          aggregatedTransactions[key1].amount += tx.amount;
+        }
+      });
+
+      transferTxSummary = Object.values(aggregatedTransactions);
 
       return transferTxSummary;
     } catch (e) {

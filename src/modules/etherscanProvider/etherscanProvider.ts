@@ -129,6 +129,16 @@ export default class MyEtherscanProvider {
       ...internalTransactionhistory,
     ].sort((a, b) => a.timeStamp - b.timeStamp);
 
-    return accountTransactionHistory;
+    const uniqueTransactions: EtherscanTransaction[] = accountTransactionHistory.reduce(
+      (acc, transaction) => {
+        if (!acc.some((t) => t.hash === transaction.hash)) {
+          acc.push(transaction);
+        }
+        return acc;
+      },
+      []
+    );
+
+    return uniqueTransactions;
   }
 }
