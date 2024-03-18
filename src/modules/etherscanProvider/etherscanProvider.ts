@@ -1,6 +1,6 @@
 import { EtherscanProvider, Networkish, BlockTag } from "ethers"; //^v6
 import { fetchHttpJson } from "../../utils/fetchUtils";
-import { logger } from "../config /logger";
+import { logger } from "../logger/Logger";
 import { EtherscanHistory, EtherscanTransaction } from "../../model/etherscanHistory";
 
 export default class MyEtherscanProvider {

@@ -18,6 +18,7 @@ TODO:
 Multiples RPC and when an error send to an other RPC
 Multi processing for it to be faster
 Lock on file
+Register basic contract with USD or WETH in the name and instead of calling the method for decimals and symbol just call db
 
 ## Update balance logic
 

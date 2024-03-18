@@ -1,5 +1,6 @@
 import { LogDescription } from "ethers";
 import fs from "fs";
+import { PerformanceMeasurer } from "../performance/PerformanceMeasurer";
 
 type OhlcEntry = {
   timestamp_open: number;
@@ -12,6 +13,11 @@ type OhlcEntry = {
 
 //TODO : automatical OHCL data update from last timestamp;
 export function getETHtoUSD(valueInETH: number, timestamp: number) {
+  const perf = new PerformanceMeasurer();
+
+  perf.start("getETHtoUSD");
+  // Code block you want to measure goes here
+
   const data = fs.readFileSync("src/../data/total_ohlc_ETH.json", "utf8");
   const entries: OhlcEntry[] = JSON.parse(data).reverse();
 
@@ -19,13 +25,18 @@ export function getETHtoUSD(valueInETH: number, timestamp: number) {
 
   for (const entry of entries) {
     if (entry.timestamp_open > timestamp) {
-      return (
-        valueInETH *
-        ((previousEntry.price_open + previousEntry.price_close) / 2)
-      );
+      perf.stop("getETHtoUSD");
+
+      console.log(`Execution time of getETHtoUSD: ${perf.getElapsedTime("getETHtoUSD")} ms`);
+
+      return valueInETH * ((previousEntry.price_open + previousEntry.price_close) / 2);
     }
     previousEntry = entry;
   }
+  perf.stop("getETHtoUSD");
+
+  console.log(`Execution time of getETHtoUSD: ${perf.getElapsedTime("getETHtoUSD")} ms`);
+
   return valueInETH * ((entries[-1].price_open + entries[-1].price_close) / 2);
 }
 
@@ -44,8 +55,6 @@ export function determineTransactionType(
 
 export function BigIntDivisionForAmount(amount: bigint, decimals: bigint) {
   if (amount / decimals <= 1000000n) {
-    return parseFloat(
-      (Number(amount / 10n ** 6n) / Number(decimals / 10n ** 6n)).toFixed(3)
-    );
+    return parseFloat((Number(amount / 10n ** 6n) / Number(decimals / 10n ** 6n)).toFixed(3));
   } else return amount / decimals;
 }

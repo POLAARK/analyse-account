@@ -10,7 +10,7 @@ import dotenv from "dotenv";
 dotenv.config({ path: "./config/.env" });
 import * as fs from "fs";
 import path from "path";
-import { logger } from "./modules/config /logger";
+import { logger } from "./modules/logger/Logger";
 
 const token: string = process.env.DISCORD_TOKEN;
 const client: any = new Client({ intents: [GatewayIntentBits.Guilds] });

@@ -1,4 +1,3 @@
-import { Block, EtherscanProvider, JsonRpcProvider, TransactionResponse, ethers } from "ethers";
 import { Account } from "../account/Account";
 import path from "path";
 import fs from "fs";
@@ -7,10 +6,11 @@ import { config } from "dotenv";
 import MyEtherscanProvider from "../etherscanProvider/etherscanProvider";
 import { TransactionResponseExtended } from "../transaction/transaction.entity";
 import { EtherscanTransaction } from "src/model/etherscanHistory";
+import { JsonRpcProviderManager } from "../jsonRpcProvider/JsonRpcProviderManager";
 
 config({ path: "src/../.env" });
 export class TransactionStreamer {
-  jsonRpcProvider: JsonRpcProvider = new JsonRpcProvider(process.env.JSON_URL, "mainnet");
+  jsonRpcProviderManager: JsonRpcProviderManager = new JsonRpcProviderManager();
   etherscanProvider: MyEtherscanProvider = new MyEtherscanProvider(process.env.ETHERSCAN_API_KEY);
   accountList: Set<Account>;
   __dirname: string = path.dirname(fileURLToPath(import.meta.url));
@@ -20,7 +20,9 @@ export class TransactionStreamer {
 
   async builtAccountTransactionHistory(lastBlock?: number, startBlock?: number) {
     try {
-      const latest = lastBlock ? lastBlock : await this.jsonRpcProvider.getBlockNumber();
+      const latest = lastBlock
+        ? lastBlock
+        : await this.jsonRpcProviderManager.callProviderMethod<number>("getBlockNumber", []);
 
       for (let account of this.accountList) {
         const filePath = path.join(

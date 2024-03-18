@@ -1,4 +1,4 @@
-import { Contract, Interface, JsonRpcProvider, LogDescription, ethers } from "ethers";
+import { Contract, Interface, LogDescription, TransactionReceipt, ethers } from "ethers";
 import {
   TransactionList,
   TransactionResponseExtended,
@@ -17,8 +17,10 @@ import { fileURLToPath } from "url";
 import { config } from "dotenv";
 import { BalanceHistory } from "./account.entity";
 import { OneContainsStrings, containsUsdOrEth } from "../../utils/stringUtils";
-import { logger } from "../config /logger";
+import { logger } from "../logger/Logger";
 import { EtherscanTransaction } from "src/model/etherscanHistory";
+import { JsonRpcProviderManager } from "../jsonRpcProvider/JsonRpcProviderManager";
+import { PerformanceMeasurer } from "../performance/PerformanceMeasurer";
 interface TokenTransactions {
   transactionList: TransactionList[];
   performanceETH: number;
@@ -26,7 +28,7 @@ interface TokenTransactions {
 }
 config({ path: "src/../.env" });
 export class Account {
-  jsonRpcProvider: JsonRpcProvider;
+  jsonRpcProviderManager: JsonRpcProviderManager;
   transactionList: EtherscanTransaction[] = [];
   address: string;
   lastBlockUpdate: number = 0;
@@ -35,11 +37,7 @@ export class Account {
   historyFilePath: string;
   constructor(address: string) {
     this.address = address;
-    this.jsonRpcProvider = new JsonRpcProvider(process.env.JSON_URL, {
-      name: "ethereum",
-      chainId: 1,
-    });
-
+    this.jsonRpcProviderManager = new JsonRpcProviderManager();
     this.__dirname = path.dirname(fileURLToPath(import.meta.url));
     const walletfilePath = path.join(
       this.__dirname,
@@ -228,6 +226,7 @@ export class Account {
       }
       try {
         const transactionSummary = await this.getTransactionTransferSummary(transaction);
+
         await this.updateBalances({
           transferTxSummary: [...transactionSummary],
         });
@@ -274,9 +273,26 @@ export class Account {
 
     try {
       // Get transaction receipt
-      const transactionReceipt = await this.jsonRpcProvider.getTransactionReceipt(tx.hash);
+      const perf = new PerformanceMeasurer();
 
+      // Code block you want to measure goes here
+      perf.start("getTransactionReceipt");
+
+      const transactionReceipt =
+        await this.jsonRpcProviderManager.callProviderMethod<TransactionReceipt>(
+          "getTransactionReceipt",
+          [tx.hash],
+          1000
+        );
+      perf.stop("getTransactionReceipt");
+      console.log(
+        `Execution time of getTransactionReceipt: ${perf.getElapsedTime(
+          "getTransactionReceipt"
+        )} ms`
+      );
       //Loop through Log :
+      perf.start("uniqueTxCreation");
+
       let transferTxSummary: TransferTx[] = [];
 
       for (let log of transactionReceipt.logs) {
@@ -286,15 +302,28 @@ export class Account {
           topics: [...log.topics],
         };
         let contractERC20: Contract;
-        contractERC20 = new ethers.Contract(log.address, erc20, this.jsonRpcProvider);
+
+        contractERC20 = new ethers.Contract(
+          log.address,
+          erc20,
+          this.jsonRpcProviderManager.getCurrentProvider()
+        );
         const parsedLog: LogDescription = interfaceERC20.parseLog(logCopy);
+
         let tokenDecimals: bigint;
         //No decimals ? decimals = 18
+        perf.start("EthersContract");
+
         try {
           tokenDecimals = await contractERC20.decimals();
         } catch (err) {
           tokenDecimals = 18n;
         }
+        perf.stop("EthersContract");
+
+        console.log(
+          `Execution time of EthersContract: ${perf.getElapsedTime("EthersContract")} ms`
+        );
 
         //Correct TransferObject
         if (parsedLog?.name && parsedLog.name === "Transfer") {
@@ -304,10 +333,12 @@ export class Account {
             tokenAdress: log.address,
             from: parsedLog.args[0],
             to: parsedLog.args[1],
-            amount: Number(
-              BigIntDivisionForAmount(parsedLog.args[2] as bigint, 10n ** tokenDecimals)
+            amount: parseFloat(
+              Number(
+                BigIntDivisionForAmount(parsedLog.args[2] as bigint, 10n ** tokenDecimals)
+              ).toFixed(3)
             ),
-            symbol: contractERC20.symbol ? ((await contractERC20.symbol()) as string) : undefined,
+            symbol: (await contractERC20.symbol()) as string | undefined,
             status: determineTransactionType(this.address, parsedLog),
           };
           transferTxSummary.push(transferTx);
@@ -317,6 +348,8 @@ export class Account {
       // If same token, from, to, aggregate the transaction
       // Is same token, from AND no status (could no determine where it goes) aggregate
       // TODO : does that creates problems
+      // Code block you want to measure goes here
+
       let aggregatedTransactions = {};
       transferTxSummary.forEach((tx) => {
         let key1 = `${tx.tokenAdress}-${tx.from}`;
@@ -336,6 +369,11 @@ export class Account {
       });
 
       transferTxSummary = Object.values(aggregatedTransactions);
+      perf.stop("uniqueTxCreation");
+
+      console.log(
+        `Execution time of uniqueTxCreation: ${perf.getElapsedTime("uniqueTxCreation")} ms`
+      );
 
       return transferTxSummary;
     } catch (e) {

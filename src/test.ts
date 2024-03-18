@@ -1,10 +1,10 @@
 import { Account } from "./modules/account/Account.js";
 import { TransactionStreamer } from "./modules/streamer/TransactionStreamer.js";
-const account = new Account("0xee98c1feb5946b83ffcb787048c90dd392217be2");
+const account = new Account("0x42a1ef5FfDaf134EB958814E443Db9c244375C8f");
 const streamer = new TransactionStreamer([account]);
 // await streamer.builtAccountTransactionHistory();
 for (let transaction of account.transactionList) {
-  if (transaction.blockNumber == 18985997) {
+  if (transaction.blockNumber == 19296955) {
     const transactionTransferSummary = await account.getTransactionTransferSummary(transaction);
     await account.updateBalances({
       transferTxSummary: [...transactionTransferSummary],

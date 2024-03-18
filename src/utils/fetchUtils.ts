@@ -2,7 +2,7 @@ import fetch from "node-fetch";
 import fs from "fs";
 import puppeteer, { Browser, HTTPResponse, Page } from "puppeteer";
 import { Http2SecureServer } from "http2";
-import { logger } from "src/modules/config /logger";
+import { logger } from "src/modules/logger/Logger";
 
 export const fetchhttpJsonPuppeteer = async function (
   url: string,

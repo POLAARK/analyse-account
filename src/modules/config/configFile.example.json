@@ -1,0 +1,6 @@
+{
+  "rpcConfigs:": {
+    "network": "Networkish",
+    "urls": "string[]"
+  }
+}
