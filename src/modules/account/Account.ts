@@ -18,7 +18,7 @@ import { config } from "dotenv";
 import { BalanceHistory } from "./account.entity";
 import { OneContainsStrings, containsUsdOrEth } from "../../utils/stringUtils";
 import { logger } from "../logger/Logger";
-import { EtherscanTransaction } from "src/model/etherscanHistory";
+import { EtherscanTransaction } from "../../model/etherscanHistory";
 import { JsonRpcProviderManager } from "../jsonRpcProvider/JsonRpcProviderManager";
 import { PerformanceMeasurer } from "../performance/PerformanceMeasurer";
 interface TokenTransactions {

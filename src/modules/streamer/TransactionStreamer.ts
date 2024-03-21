@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import { config } from "dotenv";
 import MyEtherscanProvider from "../etherscanProvider/etherscanProvider";
 import { TransactionResponseExtended } from "../transaction/transaction.entity";
-import { EtherscanTransaction } from "src/model/etherscanHistory";
+import { EtherscanTransaction } from "../../model/etherscanHistory";
 import { JsonRpcProviderManager } from "../jsonRpcProvider/JsonRpcProviderManager";
 
 config({ path: "src/../.env" });

@@ -1,25 +1,33 @@
-import {
-  Client,
-  TextChannel,
-  GatewayIntentBits,
-  Events,
-  Collection,
-  CommandInteraction,
-} from "discord.js";
+import "reflect-metadata";
+import { Client, TextChannel, GatewayIntentBits, Events, Collection } from "discord.js";
 import dotenv from "dotenv";
-dotenv.config({ path: "./config/.env" });
 import * as fs from "fs";
 import path from "path";
 import { logger } from "./modules/logger/Logger";
+import { Transaction } from "./entity/Transaction";
+import { Token } from "./entity/Token";
+
+import { fileURLToPath } from "url";
+import { dirname } from "path";
+import { appDataSource } from "datasource";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+appDataSource;
+dotenv.config({ path: __dirname + "/../.env" });
 
 const token: string = process.env.DISCORD_TOKEN;
+if (!token) {
+  logger.error("No discord Token for the app");
+  throw new Error("No discord token provided ");
+}
 const client: any = new Client({ intents: [GatewayIntentBits.Guilds] });
 
 const channelId = process.env.CHANNEL_ID;
 
 client.commands = new Collection();
 
-const commandsPath = "src/modules/discord/";
+const commandsPath = __dirname + "/modules/discord/";
 const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith(".ts"));
 
 for (const file of commandFiles) {

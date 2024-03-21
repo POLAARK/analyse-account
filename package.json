@@ -6,7 +6,8 @@
   "main": "src/app.ts",
   "scripts": {
     "start": "tsx ./src/app.ts",
-    "build": "tsc",
+    "build": "tsc && tsc-alias",
+    "build:watch": "tsc && (concurrently \"tsc -w\" \"tsc-alias -w\")",
     "test": "tsx ./src/test.ts",
     "deploy": "tsx ./src/deploy-command.ts"
   },
@@ -14,16 +15,20 @@
   "author": "Ark",
   "license": "ISC",
   "devDependencies": {
-    "@types/node": "^18.15.5",
+    "@types/node": "^18.19.26",
+    "tsc-alias": "^1.8.8",
     "typescript": "^5.0.2"
   },
   "dependencies": {
     "discord.js": "^14.8.0",
     "dotenv": "^16.0.3",
     "ethers": "^6.9.0",
+    "mysql": "^2.18.1",
     "node-fetch": "^3.3.1",
     "puppeteer": "^22.0.0",
+    "reflect-metadata": "^0.2.1",
     "tsx": "^4.7.1",
+    "typeorm": "^0.3.20",
     "winston": "^3.11.0"
   }
 }
