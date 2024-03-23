@@ -7,13 +7,14 @@ import MyEtherscanProvider from "../etherscanProvider/etherscanProvider";
 import { TransactionResponseExtended } from "../transaction/transaction.entity";
 import { EtherscanTransaction } from "../../model/etherscanHistory";
 import { JsonRpcProviderManager } from "../jsonRpcProvider/JsonRpcProviderManager";
+import { walletRepository } from "modules/repository/Repositories";
+import { Wallet } from "entity/Wallet";
 
 config({ path: "src/../.env" });
 export class TransactionStreamer {
   jsonRpcProviderManager: JsonRpcProviderManager = new JsonRpcProviderManager();
   etherscanProvider: MyEtherscanProvider = new MyEtherscanProvider(process.env.ETHERSCAN_API_KEY);
   accountList: Set<Account>;
-  __dirname: string = path.dirname(fileURLToPath(import.meta.url));
   constructor(accountList: Account[]) {
     this.accountList = new Set(accountList);
   }
@@ -25,16 +26,16 @@ export class TransactionStreamer {
         : await this.jsonRpcProviderManager.callProviderMethod<number>("getBlockNumber", []);
 
       for (let account of this.accountList) {
-        const filePath = path.join(
-          this.__dirname,
-          "../../../data/wallets/",
-          `${account.address}.json`
-        );
-
         // Check if the file exists and read the last updated block
+        let wallet: Wallet;
+
+        wallet = await walletRepository.findOneBy({ address: account.address });
+
+        if (!wallet) {
+          wallet = walletRepository.create({ address: account.address });
+        }
         if (fs.existsSync(filePath)) {
-          const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
-          account.lastBlockUpdate = data.lastBlockUpdated
+          wallet.lastBlockUpdated = data.lastBlockUpdated
             ? data.lastBlockUpdated
             : account.lastBlockUpdate;
           account.transactionList = data.transactionsList

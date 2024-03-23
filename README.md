@@ -15,10 +15,10 @@ add filters :
 -Check number token held / holds
 
 TODO:
-Multiples RPC and when an error send to an other RPC
 Multi processing for it to be faster
-Lock on file
 Register basic contract with USD or WETH in the name and instead of calling the method for decimals and symbol just call db
+Save Transfer onto DB instead of tx ?
+Do we really need to save tx. If we have already summary for a specific wallet + Inittimestamp + lastblockupdapte we don't need to save the transactions. Cuz we just have to have the new Txs for the blocks / timestamp we don't have to reloop through em. May be fore testing purpose ?
 
 ## Update balance logic
 

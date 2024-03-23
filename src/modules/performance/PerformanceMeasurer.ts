@@ -20,6 +20,7 @@ export class PerformanceMeasurer {
     const endTime = performance.now();
     const elapsed = endTime - startTime;
     this.elapsedTimes.set(key, elapsed);
+    console.log(`Execution time of '${key}' ${this.getElapsedTime(key)} ms`);
     return elapsed;
   }
 

@@ -9,6 +9,7 @@ import { Account } from "../account/Account";
 import { TransactionStreamer } from "../streamer/TransactionStreamer";
 import path, { dirname } from "path";
 import { fileURLToPath } from "url";
+import { walletRepository } from "modules/repository/Repositories";
 
 export default {
   data: new SlashCommandBuilder()
@@ -24,8 +25,10 @@ export default {
         .setRequired(false)
     ),
   async execute(interaction: CommandInteraction) {
-    const wallet = interaction.options.get("target", true).value;
-
+    const walletAddress = interaction.options.get("target", true).value;
+    if (typeof walletAddress !== "string") {
+      throw new Error("Wallet Address has to be a string");
+    }
     const timestampValue = interaction.options.get("timestamp")?.value;
     const timestamp = Number(
       timestampValue
@@ -33,24 +36,36 @@ export default {
         : Date.now() / 1000 - 365 * 24 * 60 * 60 + (365 * 24 * 60 * 60) / 2
     );
     await interaction.reply("Analyse started");
-    const account = new Account(String(wallet));
+    const account = new Account(String(walletAddress));
 
     const streamer = new TransactionStreamer([account]);
     await streamer.builtAccountTransactionHistory();
-    await account.getAccountTransactions(timestamp);
-
-    const filename = `../../../data/histories/${wallet}History.json`;
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const filepath = path.join(__dirname, filename);
-
-    const attachment = new AttachmentBuilder(filepath, {
-      name: `${wallet}History.json`,
+    await account.getAccountTradingHistory(timestamp);
+    const wallet = await walletRepository.findOne({
+      where: { address: walletAddress },
+      relations: ["tokenHistories"],
     });
 
+    const walletData = JSON.stringify(wallet, null, 2);
+
+    // Temp file path
+    const filepath = path.join(__dirname, `${walletAddress}Data.json`);
+
+    // Write data to the temp file
+    fs.writeFileSync(filepath, walletData);
+
+    // Create the attachment
+    const attachment = new AttachmentBuilder(filepath, {
+      name: `${walletAddress}Data.json`,
+    });
+
+    // Send the attachment in Discord
     await interaction.editReply({
       content: "Here is the analysis:",
       files: [attachment],
     });
+
+    // Delete the temp file
+    fs.unlinkSync(filepath);
   },
 };
