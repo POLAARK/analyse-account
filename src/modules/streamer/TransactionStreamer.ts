@@ -7,8 +7,10 @@ import MyEtherscanProvider from "../etherscanProvider/etherscanProvider";
 import { TransactionResponseExtended } from "../transaction/transaction.entity";
 import { EtherscanTransaction } from "../../model/etherscanHistory";
 import { JsonRpcProviderManager } from "../jsonRpcProvider/JsonRpcProviderManager";
-import { walletRepository } from "modules/repository/Repositories";
+import { transactionRepository, walletRepository } from "modules/repository/Repositories";
 import { Wallet } from "entity/Wallet";
+import { Transaction } from "entity/Transaction";
+import { logger } from "modules/logger/Logger";
 
 config({ path: "src/../.env" });
 export class TransactionStreamer {
@@ -19,54 +21,77 @@ export class TransactionStreamer {
     this.accountList = new Set(accountList);
   }
 
-  async builtAccountTransactionHistory(lastBlock?: number, startBlock?: number) {
+  async builtAccountTransactionHistory(lastBlock?: number, startBlock: number = 0) {
     try {
+      // TODO, we should get lastBlock by transaction
       const latest = lastBlock
         ? lastBlock
         : await this.jsonRpcProviderManager.callProviderMethod<number>("getBlockNumber", []);
-
+      let constStartBlock;
       for (let account of this.accountList) {
         // Check if the file exists and read the last updated block
-        let wallet: Wallet;
-
-        wallet = await walletRepository.findOneBy({ address: account.address });
-
+        let wallet = new Wallet();
+        try {
+          wallet = await walletRepository.findOneBy({ address: account.address });
+        } catch (err) {
+          console.log(err);
+          if (err == "EntityMetadataNotFoundError") {
+          }
+        }
         if (!wallet) {
-          wallet = walletRepository.create({ address: account.address });
+          wallet = await walletRepository.create({
+            address: account.address,
+            lastBlockUpdated: 0,
+            transactions: [],
+            numberOfTokensTraded: 0,
+            performanceUSD: 0,
+            numberOfTxs: 0,
+            lastAnalysisTimestamp: 0,
+            startAnalysisTimestamp: 0,
+          } as Wallet);
+          constStartBlock = startBlock;
         }
-        if (fs.existsSync(filePath)) {
-          wallet.lastBlockUpdated = data.lastBlockUpdated
-            ? data.lastBlockUpdated
-            : account.lastBlockUpdate;
-          account.transactionList = data.transactionsList
-            ? data.transactionsList
-            : account.transactionList;
-        }
+
+        constStartBlock = wallet.lastBlockUpdated + 1;
+
         const history = await this.etherscanProvider.constructGlobalTransactionHistory(
           account.address,
-          account.lastBlockUpdate ? account.lastBlockUpdate + 1 : startBlock ? startBlock : 0,
+          constStartBlock,
           latest
         );
-        history.forEach((tx: EtherscanTransaction, index: number) => {
-          if (index == history.length - 1 && tx.blockNumber > account.lastBlockUpdate) {
-            account.lastBlockUpdate = tx.blockNumber;
-          }
 
-          account.transactionList.push(tx);
-        });
-        fs.writeFileSync(
-          filePath,
-          JSON.stringify(
-            {
-              lastBlockUpdated: account.lastBlockUpdate,
-              transactionsList: account.transactionList,
-            },
-            null,
-            2
-          )
-        );
+        wallet.lastBlockUpdated = latest;
+        await walletRepository.save(wallet);
+        await this.saveHistoryToDB(history, wallet);
       }
     } catch (error) {
+      logger.error(error);
+      throw error;
+    }
+  }
+
+  async saveHistoryToDB(history: EtherscanTransaction[], wallet: Wallet) {
+    try {
+      for (const tx of history) {
+        if (tx.isError == "1") {
+        }
+        console.log(tx.value);
+        const transaction = new Transaction();
+        transaction.hash = tx.hash;
+        transaction.wallet = wallet;
+        transaction.blockNumber = tx.blockNumber;
+        transaction.timeStamp = tx.timeStamp;
+        transaction.fromAddress = tx.from;
+        transaction.toAddress = tx.to;
+        transaction.value = tx.value;
+        transaction.gas = tx.gas;
+        transaction.input = tx.input;
+        transaction.contractAddress = tx.contractAddress;
+
+        await transactionRepository.save(transaction);
+      }
+    } catch (error) {
+      logger.error(error);
       throw Error(error);
     }
   }

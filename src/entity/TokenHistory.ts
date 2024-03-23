@@ -4,13 +4,13 @@ import { Wallet } from "./Wallet";
 @Entity()
 export class TokenHistory {
   @ManyToOne(() => Wallet, (wallet) => wallet.tokenHistories)
-  @JoinColumn({ name: "walletAddress" })
+  @JoinColumn({ name: "walletAddress" }) // 'walletAddress' is the column in TokenHistory
   wallet: Wallet;
 
   @PrimaryColumn({ type: "varchar", length: 50 })
   tokenAddress: string;
 
-  @PrimaryColumn()
+  @PrimaryColumn({ type: "varchar", length: 50 })
   walletAddress: string;
 
   @Column({ type: "varchar", length: 20 })

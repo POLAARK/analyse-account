@@ -8,6 +8,6 @@ export class Token {
   @Column({ type: "varchar", length: 10 })
   symbol: string;
 
-  @Column({ type: "bigint", length: 20 })
+  @Column({ type: "bigint" })
   decimals: bigint;
 }

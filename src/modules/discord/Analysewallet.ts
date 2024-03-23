@@ -10,6 +10,7 @@ import { TransactionStreamer } from "../streamer/TransactionStreamer";
 import path, { dirname } from "path";
 import { fileURLToPath } from "url";
 import { walletRepository } from "modules/repository/Repositories";
+import { logger } from "modules/logger/Logger";
 
 export default {
   data: new SlashCommandBuilder()

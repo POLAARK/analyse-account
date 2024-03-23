@@ -5,21 +5,23 @@
   "type": "module",
   "main": "src/app.ts",
   "scripts": {
-    "start": "tsx ./src/app.ts",
+    "start": "tsx src/app.ts",
     "build": "tsc && tsc-alias",
     "build:watch": "tsc && (concurrently \"tsc -w\" \"tsc-alias -w\")",
-    "test": "tsx ./src/test.ts",
-    "deploy": "tsx ./src/deploy-command.ts"
+    "test": "tsx  --swc ./src/test.ts",
+    "deploy": "tsx  --swc ./src/deploy-command.ts"
   },
   "keywords": [],
   "author": "Ark",
   "license": "ISC",
   "devDependencies": {
     "@types/node": "^18.19.26",
+    "ts-node": "^10.9.2",
     "tsc-alias": "^1.8.8",
-    "typescript": "^5.0.2"
+    "typescript": "^5.4.3"
   },
   "dependencies": {
+    "@swc/core": "^1.4.8",
     "discord.js": "^14.8.0",
     "dotenv": "^16.0.3",
     "ethers": "^6.9.0",

@@ -21,7 +21,6 @@ import { logger } from "../logger/Logger";
 import { EtherscanTransaction } from "../../model/etherscanHistory";
 import { JsonRpcProviderManager } from "../jsonRpcProvider/JsonRpcProviderManager";
 import { PerformanceMeasurer } from "../performance/PerformanceMeasurer";
-import { appDataSource } from "datasource";
 import { Wallet } from "entity/Wallet";
 import {
   tokenHistoryRepository,
