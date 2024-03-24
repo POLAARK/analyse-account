@@ -2,6 +2,13 @@ import { JsonRpcProvider, ethers } from "ethers";
 import { ConfigObject } from "../config/Config";
 import path from "path";
 import { fileURLToPath } from "url";
+import { CustomError } from "modules/error/customError";
+import {
+  ALL_PROVIDERS_FAILED,
+  ERROR_EXECUTING_REQUEST,
+  METHOD_DOES_NOT_EXIST,
+  TIMEOUT,
+} from "constants/errors";
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
@@ -31,26 +38,25 @@ export class JsonRpcProviderManager {
         );
         return result;
       } catch (error) {
-        console.error(`Error with provider ${this.currentProviderIndex}:`, error.message);
+        console.log(error);
         this.currentProviderIndex = (this.currentProviderIndex + 1) % this.providers.length;
         attempts++;
       }
     }
-    throw new Error(`All providers failed for method ${methodName}.`);
+    throw new CustomError(ALL_PROVIDERS_FAILED, `All providers failed for method ${methodName}.`);
   }
 
   async callProviderMethodWithTimeout<T>(
     provider: JsonRpcProvider,
     methodName: string,
     args: any[],
-    timeout = 1000
+    timeout = 2500
   ): Promise<T> {
     return new Promise((resolve, reject) => {
       let timeoutTriggered = false;
       const timer = setTimeout(() => {
         timeoutTriggered = true;
-        console.log("TIMEOUT");
-        reject(new Error("Request timed out"));
+        reject(new CustomError(TIMEOUT, `timeout occured for ${methodName}`));
       }, timeout);
 
       // Dynamically calling the method on the provider
@@ -58,7 +64,7 @@ export class JsonRpcProviderManager {
 
       if (!method) {
         clearTimeout(timer);
-        reject(new Error("Method does not exist on provider"));
+        reject(new CustomError(METHOD_DOES_NOT_EXIST, `${methodName}`));
         return;
       }
 
@@ -70,10 +76,16 @@ export class JsonRpcProviderManager {
             resolve(result);
           }
         })
-        .catch((error: Error) => {
+        .catch((error) => {
           if (!timeoutTriggered) {
             clearTimeout(timer);
-            reject(error);
+            reject(
+              new CustomError(
+                ERROR_EXECUTING_REQUEST,
+                `${methodName} on provider ${provider.toString()}`,
+                error
+              )
+            );
           }
         });
     });

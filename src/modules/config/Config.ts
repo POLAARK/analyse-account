@@ -1,4 +1,4 @@
-import { Config, RpcConfig } from "../../model/config";
+import { Config, RpcConfig } from "../../types/config";
 import fs from "fs";
 import path from "path";
 

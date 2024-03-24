@@ -50,6 +50,8 @@ export default {
     const walletData = JSON.stringify(wallet, null, 2);
 
     // Temp file path
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
     const filepath = path.join(__dirname, `${walletAddress}Data.json`);
 
     // Write data to the temp file

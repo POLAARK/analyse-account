@@ -1,29 +1,19 @@
 import { Contract, Interface, LogDescription, TransactionReceipt, ethers } from "ethers";
-import {
-  TransactionList,
-  TransactionResponseExtended,
-  TransferTx,
-} from "../transaction/transaction.entity";
+import { TransactionResponseExtended, TransferTx } from "../transaction/transaction.entity";
 import {
   BigIntDivisionForAmount,
   determineTransactionType,
   getETHtoUSD,
 } from "../transaction/transaction.utils";
 import { erc20 } from "../abis/erc20";
-import fs from "fs";
-
-import path from "path";
-import { fileURLToPath } from "url";
 import { config } from "dotenv";
-import { BalanceHistory } from "./account.entity";
 import { OneContainsStrings, containsUsdOrEth } from "../../utils/stringUtils";
 import { logger } from "../logger/Logger";
-import { EtherscanTransaction } from "../../model/etherscanHistory";
+import { EtherscanTransaction } from "../../types/etherscanHistory";
 import { JsonRpcProviderManager } from "../jsonRpcProvider/JsonRpcProviderManager";
 import { PerformanceMeasurer } from "../performance/PerformanceMeasurer";
 import { Wallet } from "entity/Wallet";
 import {
-  tokenHistoryRepository,
   tokenRepository,
   transactionRepository,
   walletRepository,
@@ -31,13 +21,10 @@ import {
 import { Transaction } from "entity/Transaction";
 import { TokenHistory } from "entity/TokenHistory";
 import { MoreThan } from "typeorm";
-import { timeStamp } from "console";
 import { Token } from "entity/Token";
-interface TokenTransactions {
-  transactionList: TransactionList[];
-  performanceETH: number;
-  performanceUSD: number;
-}
+import { CustomError } from "modules/error/customError";
+import { TokenHistoryRepository } from "repository/tokenHistoryRepository";
+import { appDataSource } from "app";
 
 config({ path: "src/../.env" });
 export class Account {
@@ -45,6 +32,7 @@ export class Account {
   transactionList: Transaction[] = [];
   address: string;
   walletEntity: Wallet;
+  tokenHistoryRepository = new TokenHistoryRepository(appDataSource);
   constructor(address: string) {
     this.address = address;
     this.jsonRpcProviderManager = new JsonRpcProviderManager();
@@ -56,7 +44,7 @@ export class Account {
     return await this.getTransactionTransferSummary(tx);
   }
 
-  async updateBalances({ transferTxSummary }: { transferTxSummary: TransferTx[] }) {
+  async updateBalances({ transferTxSummary }: { transferTxSummary: TransferTx[] }): Promise<void> {
     let tokenSymbol: string = "";
     let tokenAddress: string = "";
     let tokenPath: "IN" | "OUT" | undefined;
@@ -70,30 +58,30 @@ export class Account {
         tokenSymbol = transferTx.symbol;
         tokenPath = transferTx.status;
 
-        tokenHistory = await tokenHistoryRepository.findOne({
+        tokenHistory = await this.tokenHistoryRepository.findOne({
           where: {
             tokenAddress: tokenAddress,
             walletAddress: this.address,
           },
         });
-        tokenHistory.numberOfTx += 1;
-
         if (!tokenHistory) {
           tokenHistory = {
+            wallet: this.walletEntity,
+            walletAddress: this.address,
             tokenAddress: tokenAddress,
             tokenSymbol: tokenSymbol,
             EthGained: 0,
             EthSpent: 0,
             USDSpent: 0,
             USDGained: 0,
-            numberOfTx: 1,
+            numberOfTx: 0,
             lastTxBlock: transferTx.blockNumber,
             performanceUSD: 0,
-            wallet: this.walletEntity,
-            walletAddress: this.address,
             pair: null,
           };
         }
+        tokenHistory.numberOfTx += 1;
+
         let index = transferTxSummary.indexOf(transferTx);
         if (index > -1) {
           transferTxSummary.splice(index, 1);
@@ -178,7 +166,9 @@ export class Account {
         }
       }
     }
-    await tokenHistoryRepository.save(tokenHistory);
+    this.tokenHistoryRepository.saveOrUpdateTokenHistory(tokenHistory);
+
+    return;
   }
 
   async getAccountTransaction(txhash: string) {
@@ -196,24 +186,29 @@ export class Account {
       order: { timeStamp: "DESC" },
     });
 
-    try {
-      const transactionPromises = transactions.map(async (transaction) => {
+    const transactionPromises = transactions.map(async (transaction) => {
+      try {
         const transactionSummary = await this.getTransactionTransferSummary(transaction);
         return this.updateBalances({
           transferTxSummary: [...transactionSummary],
         });
-      });
+      } catch (error) {
+        logger.error(error);
+      }
+    });
+
+    try {
       await Promise.all(transactionPromises);
 
       const wallet = await walletRepository.findOne({ where: { address: this.address } });
       await this.updateWalletTimestamps(timestamp, wallet);
       await this.updateSummary(wallet);
       await walletRepository.save(wallet);
-
+      console.log("End update trading repo + wallet Ts + update summary ");
       return;
     } catch (error) {
-      logger.error(`Error in getAccountTransactions:`, error);
-      throw Error("Error in getAccountTransactions");
+      logger.error(error);
+      logger.error(`Error in getAccountTradingHistory: ${error}`);
     }
   }
 
@@ -229,19 +224,25 @@ export class Account {
   }
 
   async updateSummary(wallet: Wallet) {
-    const tokenHistories = await tokenHistoryRepository.find({
-      where: { walletAddress: this.address },
-    });
-
-    wallet.numberOfTokensTraded = tokenHistories.length;
-    wallet.numberOfTxs = tokenHistories.reduce(
-      (total, tokenHistory) => total + tokenHistory.numberOfTx,
-      0
-    );
-    wallet.performanceUSD = tokenHistories.reduce(
-      (total, tokenHistory) => total + tokenHistory.performanceUSD,
-      0
-    );
+    try {
+      const tokenHistories = await this.tokenHistoryRepository.find({
+        where: { walletAddress: this.address },
+      });
+      wallet.numberOfTokensTraded = tokenHistories.length;
+      wallet.numberOfTxs = tokenHistories.reduce(
+        (total, tokenHistory) => total + tokenHistory.numberOfTx,
+        0
+      );
+      wallet.performanceUSD = tokenHistories.reduce(
+        (total, tokenHistory) => total + tokenHistory.performanceUSD,
+        0
+      );
+    } catch (error) {
+      throw new CustomError(
+        "CAN'T_UPDATE_SUMMARY",
+        `can't update wallet summary for ${wallet.address} `
+      );
+    }
   }
 
   async getTransactionTransferSummary(
@@ -250,19 +251,12 @@ export class Account {
     const interfaceERC20 = new Interface(erc20);
 
     try {
-      // Get transaction receipt
-      const perf = new PerformanceMeasurer();
-
-      // Code block you want to measure goes here
-      perf.start("getTransactionReceipt");
-
       const transactionReceipt =
         await this.jsonRpcProviderManager.callProviderMethod<TransactionReceipt>(
           "getTransactionReceipt",
           [tx.hash],
           1000
         );
-      perf.stop("getTransactionReceipt");
 
       let transferTxSummary: TransferTx[] = [];
 
@@ -281,13 +275,12 @@ export class Account {
 
         const parsedLog: LogDescription = interfaceERC20.parseLog(logCopy);
         //No decimals ? decimals = 18
-        perf.start("Symbol and decimals");
         let token: Token = await tokenRepository.findOne({ where: { address: log.address } });
         let tokenDecimals: bigint;
         let tokenSymbol: string;
         if (token) {
           tokenSymbol = token.symbol;
-          tokenDecimals = token.decimals;
+          tokenDecimals = BigInt(token.decimals);
         } else {
           try {
             tokenDecimals = BigInt(await contractERC20.decimals());
@@ -298,16 +291,16 @@ export class Account {
                 decimals: tokenDecimals,
                 symbol: tokenSymbol,
               };
+              await tokenRepository.save(token);
             }
-            tokenRepository.save(token);
           } catch (err) {
             tokenSymbol = "ERR_TOKEN_SYMBOL";
-            tokenDecimals = 18n;
+            tokenDecimals = BigInt(18);
+            if (err.code !== "CALL_EXCEPTION") {
+              logger.error(err);
+            }
           }
         }
-
-        perf.stop("Symbol and decimals");
-
         //Correct TransferObject May be to be saved to DB ?
         if (parsedLog?.name && parsedLog.name === "Transfer") {
           let transferTx: TransferTx = {
@@ -318,10 +311,10 @@ export class Account {
             to: parsedLog.args[1],
             amount: parseFloat(
               Number(
-                BigIntDivisionForAmount(parsedLog.args[2] as bigint, 10n ** tokenDecimals)
+                BigIntDivisionForAmount(parsedLog.args[2] as bigint, BigInt(10) ** tokenDecimals)
               ).toFixed(3)
             ),
-            symbol: tokenSymbol,
+            symbol: tokenSymbol, //TODO : usefull for visualisation but not very usefull
             status: determineTransactionType(this.address, parsedLog),
           };
           transferTxSummary.push(transferTx);
@@ -355,7 +348,7 @@ export class Account {
       if (e.code == "BUFFER_OVERRUN") {
         return [];
       } else {
-        logger.error("Error processing transaction:", tx.hash, e);
+        logger.error(`Error processing transaction: ${tx.hash} ${e}`);
       }
       return [];
     }

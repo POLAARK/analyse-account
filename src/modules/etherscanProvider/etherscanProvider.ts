@@ -1,7 +1,7 @@
 import { EtherscanProvider, Networkish, BlockTag } from "ethers"; //^v6
 import { fetchHttpJson } from "../../utils/fetchUtils";
 import { logger } from "../logger/Logger";
-import { EtherscanHistory, EtherscanTransaction } from "../../model/etherscanHistory";
+import { EtherscanHistory, EtherscanTransaction } from "../../types/etherscanHistory";
 
 export default class MyEtherscanProvider {
   #API_KEYS: string;

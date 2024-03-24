@@ -2,24 +2,24 @@
 //     address : string,
 //     lastBlock : number
 // }
-export interface TokenHistory {
-  tokenSymbol: string;
-  pairSpent: number;
-  pairGained: number;
-  EThSpent: number;
-  EthGained: number;
-  pair?: "ETH" | "USD" | null;
-  numberOfTx: number;
-  lastTxBlock: number;
-  performanceUSD: number;
-}
-export interface BalanceHistory {
-  summary: {
-    numberOfTokensTraded: number;
-    performanceUSD: number;
-    numberOfTxs: number;
-    lastAnalysisTimestamp: undefined | number;
-    startAnalysisTimestamp: undefined | number;
-  };
-  tokenHistories: { [address: string]: TokenHistory };
-}
+// export interface TokenHistory {
+//   tokenSymbol: string;
+//   pairSpent: number;
+//   pairGained: number;
+//   EThSpent: number;
+//   EthGained: number;
+//   pair?: "ETH" | "USD" | null;
+//   numberOfTx: number;
+//   lastTxBlock: number;
+//   performanceUSD: number;
+// }
+// export interface BalanceHistory {
+//   summary: {
+//     numberOfTokensTraded: number;
+//     performanceUSD: number;
+//     numberOfTxs: number;
+//     lastAnalysisTimestamp: undefined | number;
+//     startAnalysisTimestamp: undefined | number;
+//   };
+//   tokenHistories: { [address: string]: TokenHistory };
+// }

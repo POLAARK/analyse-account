@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import { config } from "dotenv";
 import MyEtherscanProvider from "../etherscanProvider/etherscanProvider";
 import { TransactionResponseExtended } from "../transaction/transaction.entity";
-import { EtherscanTransaction } from "../../model/etherscanHistory";
+import { EtherscanTransaction } from "../../types/etherscanHistory";
 import { JsonRpcProviderManager } from "../jsonRpcProvider/JsonRpcProviderManager";
 import { transactionRepository, walletRepository } from "modules/repository/Repositories";
 import { Wallet } from "entity/Wallet";
