@@ -8,8 +8,8 @@
     "start": "tsx src/app.ts",
     "build": "tsc && tsc-alias",
     "build:watch": "tsc && (concurrently \"tsc -w\" \"tsc-alias -w\")",
-    "test": "tsx  --swc ./src/test.ts",
-    "deploy": "tsx  --swc ./src/deploy-command.ts"
+    "test": "tsx ./src/test.ts",
+    "deploy": "tsx ./src/deploy-command.ts"
   },
   "keywords": [],
   "author": "Ark",

@@ -25,17 +25,11 @@ export function getETHtoUSD(valueInETH: number, timestamp: number) {
 
   for (const entry of entries) {
     if (entry.timestamp_open > timestamp) {
-      perf.stop("getETHtoUSD");
-
-      console.log(`Execution time of getETHtoUSD: ${perf.getElapsedTime("getETHtoUSD")} ms`);
-
       return valueInETH * ((previousEntry.price_open + previousEntry.price_close) / 2);
     }
     previousEntry = entry;
   }
   perf.stop("getETHtoUSD");
-
-  console.log(`Execution time of getETHtoUSD: ${perf.getElapsedTime("getETHtoUSD")} ms`);
 
   return valueInETH * ((entries[-1].price_open + entries[-1].price_close) / 2);
 }

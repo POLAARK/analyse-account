@@ -1,4 +1,11 @@
-import { Contract, Interface, LogDescription, TransactionReceipt, ethers } from "ethers";
+import {
+  Contract,
+  Interface,
+  LogDescription,
+  TransactionReceipt,
+  ethers,
+  formatEther,
+} from "ethers";
 import { TransactionResponseExtended, TransferTx } from "../transaction/transaction.entity";
 import {
   BigIntDivisionForAmount,
@@ -45,137 +52,33 @@ export class Account {
   }
 
   async updateBalances({ transferTxSummary }: { transferTxSummary: TransferTx[] }): Promise<void> {
-    let tokenSymbol: string = "";
-    let tokenAddress: string = "";
-    let tokenPath: "IN" | "OUT" | undefined;
-    let tokenHistory: TokenHistory;
-    for (let transferTx of transferTxSummary) {
-      // NOTE: FOR NOW WE REMOVE INNER TRANSFERS THAT HAVE NO INTERACTION WITH ACCOUNT
-      if (transferTx?.status && !containsUsdOrEth(transferTx.symbol)) {
-        //The whole is used just to determine which token has been interacted/traded with
-        //This implies that we create some problems if there are multiples tokens traded in the same account.
-        tokenAddress = transferTx.tokenAdress;
-        tokenSymbol = transferTx.symbol;
-        tokenPath = transferTx.status;
+    let pairType: "ETH" | "USD" | null;
 
-        tokenHistory = await this.tokenHistoryRepository.findOne({
-          where: {
-            tokenAddress: tokenAddress,
-            walletAddress: this.address,
-          },
-        });
-        if (!tokenHistory) {
-          tokenHistory = {
-            wallet: this.walletEntity,
-            walletAddress: this.address,
-            tokenAddress: tokenAddress,
-            tokenSymbol: tokenSymbol,
-            EthGained: 0,
-            EthSpent: 0,
-            USDSpent: 0,
-            USDGained: 0,
-            numberOfTx: 0,
-            lastTxBlock: transferTx.blockNumber,
-            performanceUSD: 0,
-            pair: null,
-          };
-        }
-        tokenHistory.numberOfTx += 1;
+    const result = await this.findMainTokenTradedOnTransaction(transferTxSummary, this.address);
+    const updatedTransferTxSummary: TransferTx[] = result.updatedTransferTxSummary;
+    const tokenHistory: TokenHistory = result.tokenHistory; //May be we didn't find a token address (meaning we interacted with no token in the transaction)
+    const tokenPath: "IN" | "OUT" | undefined = result.tokenPath;
 
-        let index = transferTxSummary.indexOf(transferTx);
-        if (index > -1) {
-          transferTxSummary.splice(index, 1);
-        }
-        break;
-      }
-    }
-    //May be we didn't find a token address (meaning we interacted with no token in the transaction)
-    if (tokenAddress == "") {
+    if (tokenHistory.tokenAddress == "") {
       return;
     }
 
-    let pairType: "ETH" | "USD" | null;
-    for (let transferTx of transferTxSummary) {
+    for (let transferTx of updatedTransferTxSummary) {
       if (transferTx?.status) {
-        pairType = OneContainsStrings(transferTx.symbol, ["usd"])
-          ? "USD"
-          : OneContainsStrings(transferTx.symbol, ["eth"])
-          ? "ETH"
-          : null;
-        tokenHistory.pair = pairType;
-        let amount = Number(transferTx.amount);
-        if (pairType == "ETH") {
-          if (transferTx.status === "IN") {
-            tokenHistory.EthGained += amount;
-            tokenHistory.performanceUSD += getETHtoUSD(amount, transferTx.timestamp);
-          } else if (transferTx.status === "OUT") {
-            tokenHistory.EthSpent += amount;
-            tokenHistory.performanceUSD -= getETHtoUSD(amount, transferTx.timestamp);
-          }
-        } else if (pairType) {
-          if (transferTx.status === "IN") {
-            tokenHistory.USDGained += amount;
-            tokenHistory.performanceUSD += amount;
-          } else if (transferTx.status === "OUT") {
-            tokenHistory.USDSpent += amount;
-            tokenHistory.performanceUSD -= amount;
-          }
-        }
+        pairType = this.updateTokenHistoryBasedOnPairType(transferTx, tokenHistory);
       }
     }
     if (!pairType) {
-      for (let transferTx of transferTxSummary) {
-        if (!transferTx?.status && tokenAddress !== transferTx.tokenAdress) {
-          // WE HAVE TO MAKE SURE IT'S WETH SO WE ARE GOING TO DO AND =/= from token
-          // BUT IT CAN BE WHATEVER SO, WE HAVE TO DO, == WETH adrr (in db).
-          // Dans le cas d'un trading avec du WETH : si le transfer n'est pas directement fait au compte;
-          // Alors on fait l'hypothèse que ce qui est tradé dans les transferts logs AUTRE que le token
-          // C'est la paire et elle fait le sens inverse du trade du token
-          // So we don't have a transfer status (undefined)
-
-          tokenHistory.pair = "ETH";
-          let amount = Number(transferTx.amount);
-          // Here we break the loop for sure because we assume that whatever the transfer the amount transfered is the full amount of the transfer
-          // TODO: Explore this idea. To check for proper transfer we have to check for transaction to or from the address of previous transfer
-          // in the same block
-          // Or check if transfer corresponds to same amount
-          // Or check if transfers has same from to with different amount then it is an other transfer that give us the total value
-          if (tokenPath === "IN") {
-            if (OneContainsStrings(transferTx.symbol, ["usd"])) {
-              tokenHistory.USDSpent += amount;
-              tokenHistory.performanceUSD -= amount;
-              break;
-            }
-            if (OneContainsStrings(transferTx.symbol, ["eth"])) {
-              tokenHistory.USDSpent += amount;
-              tokenHistory.performanceUSD -= getETHtoUSD(amount, transferTx.timestamp);
-              break;
-            }
-          } else if (tokenPath === "OUT") {
-            if (OneContainsStrings(transferTx.symbol, ["usd"])) {
-              tokenHistory.USDGained += amount;
-              tokenHistory.performanceUSD += amount;
-              break;
-            }
-            if (OneContainsStrings(transferTx.symbol, ["eth"])) {
-              tokenHistory.EthGained += amount;
-              tokenHistory.performanceUSD += getETHtoUSD(amount, transferTx.timestamp);
-              break;
-            }
-          }
-        }
-      }
+      this.processFallbackTransfers(updatedTransferTxSummary, tokenHistory, tokenPath);
     }
     this.tokenHistoryRepository.saveOrUpdateTokenHistory(tokenHistory);
-
+    console.log(tokenHistory);
     return;
   }
 
   async getAccountTransaction(txhash: string) {
-    return await transactionRepository.findOne({
-      where: {
-        hash: txhash,
-      },
+    return await transactionRepository.findOneBy({
+      hash: txhash,
     });
   }
 
@@ -249,6 +152,7 @@ export class Account {
     tx: TransactionResponseExtended | EtherscanTransaction | Transaction
   ): Promise<TransferTx[]> {
     const interfaceERC20 = new Interface(erc20);
+    let transferTxSummary: TransferTx[] = [];
 
     try {
       const transactionReceipt =
@@ -258,7 +162,22 @@ export class Account {
           1000
         );
 
-      let transferTxSummary: TransferTx[] = [];
+      // If value we assume that the value send is the value traded
+      // To keep the same logic we just add a transferTx object
+      // it might be wrong, only tests will confirm
+      const value = tx.value;
+      if (value > 0) {
+        transferTxSummary.push({
+          blockNumber: tx.blockNumber,
+          timestamp: parseInt(tx?.timeStamp.toString()),
+          tokenAdress: "0x0",
+          from: transactionReceipt.from,
+          to: transactionReceipt.to,
+          amount: BigInt(formatEther(value)),
+          symbol: "WETH",
+          status: "OUT",
+        });
+      }
 
       for (let log of transactionReceipt.logs) {
         //Create a logCopy because of types :)
@@ -297,7 +216,7 @@ export class Account {
             tokenSymbol = "ERR_TOKEN_SYMBOL";
             tokenDecimals = BigInt(18);
             if (err.code !== "CALL_EXCEPTION") {
-              logger.error(err);
+              logger.error(err + " " + log.address);
             }
           }
         }
@@ -314,7 +233,7 @@ export class Account {
                 BigIntDivisionForAmount(parsedLog.args[2] as bigint, BigInt(10) ** tokenDecimals)
               ).toFixed(3)
             ),
-            symbol: tokenSymbol, //TODO : usefull for visualisation but not very usefull
+            symbol: tokenSymbol,
             status: determineTransactionType(this.address, parsedLog),
           };
           transferTxSummary.push(transferTx);
@@ -325,7 +244,7 @@ export class Account {
       // Is same token, from AND no status (could no determine where it goes) aggregate
       let aggregatedTransactions = {};
       transferTxSummary.forEach((tx) => {
-        let key1 = `${tx.tokenAdress}-${tx.from}`;
+        let key1 = `${tx.tokenAdress}-${tx.from}-${tx.status}`;
         let key2 = `${tx.tokenAdress}-${tx.from}-${tx.to}`;
 
         if (tx.status) {
@@ -342,7 +261,6 @@ export class Account {
       });
 
       transferTxSummary = Object.values(aggregatedTransactions);
-
       return transferTxSummary;
     } catch (e) {
       if (e.code == "BUFFER_OVERRUN") {
@@ -351,6 +269,158 @@ export class Account {
         logger.error(`Error processing transaction: ${tx.hash} ${e}`);
       }
       return [];
+    }
+  }
+
+  async findMainTokenTradedOnTransaction(
+    transferTxSummary: TransferTx[],
+    walletAddress: string
+  ): Promise<{
+    updatedTransferTxSummary: TransferTx[];
+    tokenHistory: TokenHistory | null;
+    tokenPath: "IN" | "OUT" | undefined;
+  }> {
+    let fallbackTransfer: TransferTx | null = null;
+    let tokenHistory: TokenHistory | null = null;
+    let tokenPath: "IN" | "OUT" | undefined;
+    for (const transferTx of transferTxSummary) {
+      if (!transferTx?.status || containsUsdOrEth(transferTx.symbol)) {
+        continue; // Skip transactions that are either incomplete or do not involve USD or ETH.
+      }
+
+      if (!fallbackTransfer) {
+        fallbackTransfer = transferTx;
+      }
+
+      const currentTokenAddress = transferTx.tokenAdress;
+      tokenHistory = await this.tokenHistoryRepository.findOne({
+        where: {
+          tokenAddress: currentTokenAddress,
+          walletAddress: walletAddress,
+        },
+      });
+
+      if (tokenHistory) {
+        const transactionIndex = transferTxSummary.indexOf(transferTx);
+        tokenPath = transferTx.status;
+        if (transactionIndex > -1) {
+          transferTxSummary.splice(transactionIndex, 1);
+          break;
+        }
+      }
+    }
+
+    if (!tokenHistory && fallbackTransfer) {
+      tokenHistory = {
+        wallet: this.walletEntity,
+        walletAddress: this.address,
+        tokenAddress: fallbackTransfer.tokenAdress,
+        tokenSymbol: fallbackTransfer.symbol,
+        EthGained: 0,
+        EthSpent: 0,
+        USDSpent: 0,
+        USDGained: 0,
+        numberOfTx: 0,
+        lastTxBlock: transferTxSummary[0].blockNumber,
+        performanceUSD: 0,
+        pair: null,
+      };
+      tokenPath = fallbackTransfer.status;
+      let index = transferTxSummary.indexOf(fallbackTransfer);
+      if (index > -1) {
+        transferTxSummary.splice(index, 1);
+      }
+    }
+
+    return { updatedTransferTxSummary: transferTxSummary, tokenHistory, tokenPath };
+  }
+
+  updateTokenHistoryForEthPair(transferTx: TransferTx, tokenHistory: TokenHistory) {
+    let amount = Number(transferTx.amount);
+    if (transferTx.status === "IN") {
+      tokenHistory.EthGained += amount;
+      tokenHistory.performanceUSD += getETHtoUSD(amount, transferTx.timestamp);
+    } else if (transferTx.status === "OUT") {
+      tokenHistory.EthSpent += amount;
+      tokenHistory.performanceUSD -= getETHtoUSD(amount, transferTx.timestamp);
+    }
+  }
+
+  updateTokenHistoryForUsdPair(transferTx: TransferTx, tokenHistory: TokenHistory) {
+    let amount = Number(transferTx.amount);
+    if (transferTx.status === "IN") {
+      tokenHistory.USDGained += amount;
+      tokenHistory.performanceUSD += amount;
+    } else if (transferTx.status === "OUT") {
+      tokenHistory.USDSpent += amount;
+      tokenHistory.performanceUSD -= amount;
+    }
+  }
+
+  updateTokenHistoryBasedOnPairType(
+    transferTx: TransferTx,
+    tokenHistory: TokenHistory
+  ): "ETH" | "USD" | null {
+    const pairType = OneContainsStrings(transferTx.symbol, ["usd"])
+      ? "USD"
+      : OneContainsStrings(transferTx.symbol, ["eth"])
+      ? "ETH"
+      : null;
+    tokenHistory.pair = pairType;
+
+    if (pairType === "ETH") {
+      this.updateTokenHistoryForEthPair(transferTx, tokenHistory);
+    } else if (pairType) {
+      this.updateTokenHistoryForUsdPair(transferTx, tokenHistory);
+    }
+    return pairType;
+  }
+
+  async processFallbackTransfers(
+    transferTxSummary: TransferTx[],
+    tokenHistory: TokenHistory,
+    tokenPath: "IN" | "OUT" | undefined
+  ) {
+    for (let transferTx of transferTxSummary) {
+      if (!transferTx?.status && tokenHistory.tokenAddress !== transferTx.tokenAdress) {
+        // WE HAVE TO MAKE SURE IT'S WETH SO WE ARE GOING TO DO AND =/= from token
+        // BUT IT CAN BE WHATEVER SO, WE HAVE TO DO, == WETH adrr (in db).
+        // Dans le cas d'un trading avec du WETH : si le transfer n'est pas directement fait au compte;
+        // Alors on fait l'hypothèse que ce qui est tradé dans les transferts logs AUTRE que le token
+        // C'est la paire et elle fait le sens inverse du trade du token
+        // So we don't have a transfer status (undefined)
+
+        tokenHistory.pair = "ETH";
+        let amount = Number(transferTx.amount);
+        // Here we break the loop for sure because we assume that whatever the transfer the amount transfered is the full amount of the transfer
+        // TODO: Explore this idea. To check for proper transfer we have to check for transaction to or from the address of previous transfer
+        // in the same block
+        // Or check if transfer corresponds to same amount
+        // Or check if transfers has same from to with different amount then it is an other transfer that give us the total value
+        if (tokenPath === "IN") {
+          if (OneContainsStrings(transferTx.symbol, ["usd"])) {
+            tokenHistory.USDSpent += amount;
+            tokenHistory.performanceUSD -= amount;
+            break;
+          }
+          if (OneContainsStrings(transferTx.symbol, ["eth"])) {
+            tokenHistory.EthSpent += amount;
+            tokenHistory.performanceUSD -= getETHtoUSD(amount, transferTx.timestamp);
+            break;
+          }
+        } else if (tokenPath === "OUT") {
+          if (OneContainsStrings(transferTx.symbol, ["usd"])) {
+            tokenHistory.USDGained += amount;
+            tokenHistory.performanceUSD += amount;
+            break;
+          }
+          if (OneContainsStrings(transferTx.symbol, ["eth"])) {
+            tokenHistory.EthGained += amount;
+            tokenHistory.performanceUSD += getETHtoUSD(amount, transferTx.timestamp);
+            break;
+          }
+        }
+      }
     }
   }
 }
