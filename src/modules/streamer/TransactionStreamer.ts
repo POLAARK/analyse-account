@@ -11,6 +11,8 @@ import { transactionRepository, walletRepository } from "modules/repository/Repo
 import { Wallet } from "entity/Wallet";
 import { Transaction } from "entity/Transaction";
 import { logger } from "modules/logger/Logger";
+import { CustomError } from "modules/error/customError";
+import { ERROR_SAVING_ENTITY_IN_DATABASE } from "constants/errors";
 
 config({ path: "src/../.env" });
 export class TransactionStreamer {
@@ -72,10 +74,11 @@ export class TransactionStreamer {
 
   async saveHistoryToDB(history: EtherscanTransaction[], wallet: Wallet) {
     try {
+      let value: number;
       for (const tx of history) {
         if (tx.isError == "1") {
         }
-        console.log(tx.value);
+        value = tx.value;
         const transaction = new Transaction();
         transaction.hash = tx.hash;
         transaction.wallet = wallet;
@@ -83,7 +86,7 @@ export class TransactionStreamer {
         transaction.timeStamp = tx.timeStamp;
         transaction.fromAddress = tx.from;
         transaction.toAddress = tx.to;
-        transaction.value = tx.value;
+        transaction.value = tx.value.toString();
         transaction.gas = tx.gas;
         transaction.input = tx.input;
         transaction.contractAddress = tx.contractAddress;
@@ -92,7 +95,11 @@ export class TransactionStreamer {
       }
     } catch (error) {
       logger.error(error);
-      throw Error(error);
+      throw new CustomError(
+        ERROR_SAVING_ENTITY_IN_DATABASE,
+        "Couldn't save transaction in to db",
+        error
+      );
     }
   }
 

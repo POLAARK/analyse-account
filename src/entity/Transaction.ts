@@ -24,8 +24,8 @@ export class Transaction {
   @Column({ type: "varchar", length: 50, nullable: true })
   toAddress: string;
 
-  @Column({ type: "bigint", nullable: true })
-  value: number;
+  @Column({ type: "varchar", length: 50, nullable: true })
+  value: string;
 
   @Column("bigint")
   gas: number;

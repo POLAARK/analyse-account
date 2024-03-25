@@ -10,16 +10,7 @@ export class GenericRepository<T> extends Repository<T> {
   }
 
   async saveEntity(entity: T): Promise<T> {
-    try {
-      const savedEntity = await this.save<T>(entity);
-      return savedEntity;
-    } catch (err) {
-      logger.error(err);
-      throw new CustomError(
-        ERROR_SAVING_ENTITY_IN_DATABASE,
-        `Error saving entity ${this.target} in DB`, // To test
-        err
-      );
-    }
+    const savedEntity = await this.save<T>(entity);
+    return savedEntity;
   }
 }

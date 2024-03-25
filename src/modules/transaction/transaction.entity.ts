@@ -18,7 +18,7 @@ export interface TransferTx {
   blockNumber: number;
   timestamp: number;
   tokenAdress: string;
-  amount: number | BigInt;
+  amount: BigInt | number;
   from: string;
   to: string;
   symbol: string;

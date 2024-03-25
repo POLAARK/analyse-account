@@ -4,7 +4,7 @@ export class CustomError extends Error {
   public type: string;
   public additionalInfo?: string;
   public baseError?: Error;
-  constructor(message = "Internal server error", name?: string, baseError?: Error | unknown) {
+  constructor(name?: string, message = "Internal server error", baseError?: Error | unknown) {
     const msg = typeof message === "object" ? JSON.stringify(message) : message;
     super(msg);
     this.type = name || INTERNAL_SERVER_ERROR;

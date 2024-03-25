@@ -173,7 +173,7 @@ export class Account {
           tokenAdress: "0x0",
           from: transactionReceipt.from,
           to: transactionReceipt.to,
-          amount: BigInt(formatEther(value)),
+          amount: parseFloat(parseFloat(formatEther(value)).toFixed(3)),
           symbol: "WETH",
           status: "OUT",
         });

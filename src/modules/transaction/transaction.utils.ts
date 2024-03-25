@@ -1,6 +1,7 @@
 import { LogDescription } from "ethers";
 import fs from "fs";
 import { PerformanceMeasurer } from "../performance/PerformanceMeasurer";
+import { EthOhlcRepository } from "../../repository/EthOhlcRepository";
 
 type OhlcEntry = {
   timestamp_open: number;
@@ -12,26 +13,19 @@ type OhlcEntry = {
 };
 
 //TODO : automatical OHCL data update from last timestamp;
-export function getETHtoUSD(valueInETH: number, timestamp: number) {
+export async function getETHtoUSD(
+  ethOhlcRepository: EthOhlcRepository,
+  valueInETH: number,
+  timestamp: number
+) {
   const perf = new PerformanceMeasurer();
 
   perf.start("getETHtoUSD");
-  // Code block you want to measure goes here
+  const currentOhlc = await ethOhlcRepository.findClosestRecord(timestamp);
 
-  const data = fs.readFileSync("src/../data/total_ohlc_ETH.json", "utf8");
-  const entries: OhlcEntry[] = JSON.parse(data).reverse();
-
-  let previousEntry: OhlcEntry | null = null;
-
-  for (const entry of entries) {
-    if (entry.timestamp_open > timestamp) {
-      return valueInETH * ((previousEntry.price_open + previousEntry.price_close) / 2);
-    }
-    previousEntry = entry;
-  }
   perf.stop("getETHtoUSD");
 
-  return valueInETH * ((entries[-1].price_open + entries[-1].price_close) / 2);
+  return valueInETH * ((currentOhlc.priceOpen + currentOhlc.priceClose) / 2);
 }
 
 export function determineTransactionType(
