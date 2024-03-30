@@ -8,5 +8,8 @@ export const ERROR_SAVING_ENTITY_IN_DATABASE = "Error saving object in database"
 
 //JSONRPCPROVIDER
 export const METHOD_DOES_NOT_EXIST = "Method does not exist";
-export const ERROR_EXECUTING_REQUEST = "Error executing this request using JsonRpcProvider";
+export const ERROR_EXECUTING_RPC_REQUEST = "Error executing this request using JsonRpcProvider";
 export const ALL_PROVIDERS_FAILED = "All Providers failed executing this request";
+
+//Fetch
+export const ERROR_FETCHING_DATA = "Error fetching data";

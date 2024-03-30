@@ -1,6 +1,8 @@
 {
   "rpcConfigs:": {
     "network": "Networkish",
-    "urls": "string[]"
+    "urls": "string[]",
+    "tokenAddress": "0xae7ab96520de3a18e5e111b5eaab095312d7fe84",
+    "poolAddress": "0x4028daac072e492d34a3afdbef0ba7e35d8b55c4"
   }
 }

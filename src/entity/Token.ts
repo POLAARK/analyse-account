@@ -5,7 +5,7 @@ export class Token {
   @PrimaryColumn({ type: "varchar", length: 255 })
   address: string;
 
-  @Column({ type: "varchar", length: 10 })
+  @Column({ type: "varchar", length: 20 })
   symbol: string;
 
   @Column({ type: "bigint" })

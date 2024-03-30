@@ -8,4 +8,6 @@ export type Config = {
 export type RpcConfig = {
   network: Networkish;
   urls: string[];
+  tokenAddress: string;
+  poolAddress: string;
 };

@@ -36,6 +36,7 @@ export class TransactionStreamer {
         try {
           wallet = await walletRepository.findOneBy({ address: account.address });
         } catch (err) {
+          console.log("builtAccountTransactionHistory");
           console.log(err);
           if (err == "EntityMetadataNotFoundError") {
           }
@@ -67,6 +68,7 @@ export class TransactionStreamer {
         await this.saveHistoryToDB(history, wallet);
       }
     } catch (error) {
+      logger.error("ERROR IN builtAccountTransactionHistory");
       logger.error(error);
       throw error;
     }

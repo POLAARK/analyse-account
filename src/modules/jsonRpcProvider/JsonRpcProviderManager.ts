@@ -1,14 +1,14 @@
-import { JsonRpcProvider, ethers } from "ethers";
+import { JsonRpcProvider, TransactionReceipt, ethers } from "ethers";
 import { ConfigObject } from "../config/Config";
 import path from "path";
 import { fileURLToPath } from "url";
 import { CustomError } from "modules/error/customError";
 import {
   ALL_PROVIDERS_FAILED,
-  ERROR_EXECUTING_REQUEST,
+  ERROR_EXECUTING_RPC_REQUEST,
   METHOD_DOES_NOT_EXIST,
-  TIMEOUT,
 } from "constants/errors";
+import { logger } from "modules/logger/Logger";
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
@@ -36,13 +36,25 @@ export class JsonRpcProviderManager {
           args,
           timeout
         );
+        if (
+          methodName == "getTransactionReceipt" &&
+          result instanceof TransactionReceipt &&
+          !result.logs
+        ) {
+          throw new Error("No logs for this receipt, retry");
+        }
         return result;
       } catch (error) {
-        console.log(error);
+        if (error == `timeout occured for ${methodName}`) {
+          // console.log("timeout on call jsonRpc method");
+        } else {
+          logger.error(error);
+        }
         this.currentProviderIndex = (this.currentProviderIndex + 1) % this.providers.length;
         attempts++;
       }
     }
+    logger.error("ARE WE HERRREEEE ? ");
     throw new CustomError(ALL_PROVIDERS_FAILED, `All providers failed for method ${methodName}.`);
   }
 
@@ -50,22 +62,20 @@ export class JsonRpcProviderManager {
     provider: JsonRpcProvider,
     methodName: string,
     args: any[],
-    timeout = 2500
+    timeout = 3500
   ): Promise<T> {
     return new Promise((resolve, reject) => {
       let timeoutTriggered = false;
       const timer = setTimeout(() => {
         timeoutTriggered = true;
-        reject(new CustomError(TIMEOUT, `timeout occured for ${methodName}`));
+        reject(`timeout occured for ${methodName}`);
       }, timeout);
 
-      // Dynamically calling the method on the provider
       const method = provider[methodName as keyof JsonRpcProvider] as Function;
 
       if (!method) {
         clearTimeout(timer);
         reject(new CustomError(METHOD_DOES_NOT_EXIST, `${methodName}`));
-        return;
       }
 
       method
@@ -81,8 +91,8 @@ export class JsonRpcProviderManager {
             clearTimeout(timer);
             reject(
               new CustomError(
-                ERROR_EXECUTING_REQUEST,
-                `${methodName} on provider ${provider.toString()}`,
+                ERROR_EXECUTING_RPC_REQUEST,
+                `${methodName} on provider ${JSON.stringify(provider)}`,
                 error
               )
             );

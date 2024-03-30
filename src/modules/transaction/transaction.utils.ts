@@ -19,13 +19,12 @@ export async function getETHtoUSD(
   timestamp: number
 ) {
   const perf = new PerformanceMeasurer();
-
   perf.start("getETHtoUSD");
   const currentOhlc = await ethOhlcRepository.findClosestRecord(timestamp);
-
   perf.stop("getETHtoUSD");
-
-  return valueInETH * ((currentOhlc.priceOpen + currentOhlc.priceClose) / 2);
+  const value: number =
+    valueInETH * ((Number(currentOhlc.priceOpen) + Number(currentOhlc.priceClose)) / 2);
+  return value;
 }
 
 export function determineTransactionType(

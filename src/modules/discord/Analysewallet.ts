@@ -7,10 +7,15 @@ import {
 import * as fs from "fs";
 import { Account } from "../account/Account";
 import { TransactionStreamer } from "../streamer/TransactionStreamer";
-import path, { dirname } from "path";
+import path from "path";
 import { fileURLToPath } from "url";
 import { walletRepository } from "modules/repository/Repositories";
 import { logger } from "modules/logger/Logger";
+import { TokenPriceService } from "modules/tokenPriceHistory/tokenPriceService";
+import { ConfigObject } from "modules/config/Config";
+
+const filename = fileURLToPath(import.meta.url);
+const dirname = path.dirname(filename);
 
 export default {
   data: new SlashCommandBuilder()
@@ -40,6 +45,15 @@ export default {
     const account = new Account(String(walletAddress));
 
     const streamer = new TransactionStreamer([account]);
+    const tokenPriceService = new TokenPriceService();
+
+    const configObject = new ConfigObject(path.join(dirname, "../config/configFile.json"));
+
+    await tokenPriceService.getTokenPriceHistory(
+      configObject.rpcConfigs.tokenAddress,
+      configObject.rpcConfigs.poolAddress
+    );
+
     await streamer.builtAccountTransactionHistory();
     await account.getAccountTradingHistory(timestamp);
     const wallet = await walletRepository.findOne({
@@ -49,10 +63,7 @@ export default {
 
     const walletData = JSON.stringify(wallet, null, 2);
 
-    // Temp file path
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = dirname(__filename);
-    const filepath = path.join(__dirname, `${walletAddress}Data.json`);
+    const filepath = path.join(dirname, `${walletAddress}Data.json`);
 
     // Write data to the temp file
     fs.writeFileSync(filepath, walletData);

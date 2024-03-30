@@ -1,10 +1,21 @@
 import { appDataSource } from "app.js";
 import { Account } from "./modules/account/Account.js";
 import { TransactionStreamer } from "./modules/streamer/TransactionStreamer.js";
-import { tokenPriceService } from "modules/tokenPriceHistory/tokenPriceHistory.js";
+import { TokenPriceService } from "modules/tokenPriceHistory/tokenPriceService.js";
+import { JsonRpcProviderManager } from "modules/jsonRpcProvider/JsonRpcProviderManager.js";
+import { TransactionReceipt } from "ethers";
 
 appDataSource.initialize().then(async () => {
   await appDataSource.synchronize().catch((error) => {});
+  const jsonRpcProviderManager = new JsonRpcProviderManager();
+  const transactionReceipt = await jsonRpcProviderManager.callProviderMethod<TransactionReceipt>(
+    "getTransactionReceipt",
+    ["0xc34cb409aad729bd8b05389ea8707c37b452cdbb9d3a413833001d4b96cf2f3f"],
+    1000
+  );
+  console.log(transactionReceipt);
+  console.log(transactionReceipt.logs);
+  // 0xc34cb409aad729bd8b05389ea8707c37b452cdbb9d3a413833001d4b96cf2f3f
   // const account = new Account("0x42a1ef5FfDaf134EB958814E443Db9c244375C8f");
   // const streamer = new TransactionStreamer([account]);
 
@@ -16,9 +27,6 @@ appDataSource.initialize().then(async () => {
   // await account.updateBalances({
   //   transferTxSummary: [...transactionTransferSummary],
   // });
-
-  const ethService = new tokenPriceService();
-  ethService.processFile("./data/total_ohlc_ETH.JSON");
 });
 
 // await streamer.builtAccountTransactionHistory();

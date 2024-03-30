@@ -14,7 +14,6 @@ export class TokenHistoryRepository extends GenericRepository<TokenHistory> {
 
   async saveOrUpdateTokenHistory(entity: TokenHistory, maxRetries = 3): Promise<TokenHistory> {
     let attempts = 1;
-
     while (attempts < maxRetries) {
       try {
         const existingEntity = await this.findOne({

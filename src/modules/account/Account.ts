@@ -32,6 +32,7 @@ import { Token } from "entity/Token";
 import { CustomError } from "modules/error/customError";
 import { TokenHistoryRepository } from "repository/tokenHistoryRepository";
 import { appDataSource } from "app";
+import { EthOhlcRepository } from "../../repository/EthOhlcRepository";
 
 config({ path: "src/../.env" });
 export class Account {
@@ -40,6 +41,7 @@ export class Account {
   address: string;
   walletEntity: Wallet;
   tokenHistoryRepository = new TokenHistoryRepository(appDataSource);
+  ethOhlcRepository = new EthOhlcRepository(appDataSource);
   constructor(address: string) {
     this.address = address;
     this.jsonRpcProviderManager = new JsonRpcProviderManager();
@@ -55,6 +57,8 @@ export class Account {
     let pairType: "ETH" | "USD" | null;
 
     const result = await this.findMainTokenTradedOnTransaction(transferTxSummary, this.address);
+    if (!result.tokenHistory) return;
+
     const updatedTransferTxSummary: TransferTx[] = result.updatedTransferTxSummary;
     const tokenHistory: TokenHistory = result.tokenHistory; //May be we didn't find a token address (meaning we interacted with no token in the transaction)
     const tokenPath: "IN" | "OUT" | undefined = result.tokenPath;
@@ -65,14 +69,13 @@ export class Account {
 
     for (let transferTx of updatedTransferTxSummary) {
       if (transferTx?.status) {
-        pairType = this.updateTokenHistoryBasedOnPairType(transferTx, tokenHistory);
+        pairType = await this.updateTokenHistoryBasedOnPairType(transferTx, tokenHistory);
       }
     }
     if (!pairType) {
-      this.processFallbackTransfers(updatedTransferTxSummary, tokenHistory, tokenPath);
+      await this.processFallbackTransfers(updatedTransferTxSummary, tokenHistory, tokenPath);
     }
     this.tokenHistoryRepository.saveOrUpdateTokenHistory(tokenHistory);
-    console.log(tokenHistory);
     return;
   }
 
@@ -96,6 +99,7 @@ export class Account {
           transferTxSummary: [...transactionSummary],
         });
       } catch (error) {
+        logger.error("Error during getTransactionTransferSummary and updateBalances");
         logger.error(error);
       }
     });
@@ -110,10 +114,42 @@ export class Account {
       console.log("End update trading repo + wallet Ts + update summary ");
       return;
     } catch (error) {
+      logger.error(`Error in getAccountTradingHistory: `);
       logger.error(error);
-      logger.error(`Error in getAccountTradingHistory: ${error}`);
     }
   }
+  // async getAccountTradingHistory(timestamp: number): Promise<void> {
+  //   // Fetch only transactions newer than `usedTimestamp`
+  //   const transactions = await transactionRepository.find({
+  //     where: { wallet: { address: this.address }, timeStamp: MoreThan(timestamp) },
+  //     order: { timeStamp: "DESC" },
+  //   });
+
+  //   for (const transaction of transactions) {
+  //     try {
+  //       const transactionSummary = await this.getTransactionTransferSummary(transaction);
+  //       await this.updateBalances({
+  //         transferTxSummary: [...transactionSummary],
+  //       });
+  //     } catch (error) {
+  //       logger.error("Error during getTransactionTransferSummary and updateBalances");
+  //       console.log(error);
+  //       // Optionally, you can continue to the next transaction, or re-throw the error to stop processing
+  //       continue; // or throw error;
+  //     }
+  //   }
+
+  //   try {
+  //     const wallet = await walletRepository.findOne({ where: { address: this.address } });
+  //     await this.updateWalletTimestamps(timestamp, wallet);
+  //     await this.updateSummary(wallet);
+  //     await walletRepository.save(wallet);
+  //     console.log("End update trading repo + wallet Ts + update summary ");
+  //   } catch (error) {
+  //     logger.error(`Error in getAccountTradingHistory: `);
+  //     logger.error(error);
+  //   }
+  // }
 
   async updateWalletTimestamps(timestamp: number, wallet: Wallet) {
     if (wallet) {
@@ -153,10 +189,10 @@ export class Account {
   ): Promise<TransferTx[]> {
     const interfaceERC20 = new Interface(erc20);
     let transferTxSummary: TransferTx[] = [];
-
+    const jsonRpcProviderManager = new JsonRpcProviderManager();
     try {
       const transactionReceipt =
-        await this.jsonRpcProviderManager.callProviderMethod<TransactionReceipt>(
+        await jsonRpcProviderManager.callProviderMethod<TransactionReceipt>(
           "getTransactionReceipt",
           [tx.hash],
           1000
@@ -165,15 +201,17 @@ export class Account {
       // If value we assume that the value send is the value traded
       // To keep the same logic we just add a transferTx object
       // it might be wrong, only tests will confirm
-      const value = tx.value;
-      if (value > 0) {
+      const valueWei = BigInt(tx.value); // Convert string to BigNumber
+      const valueEther = formatEther(valueWei); // Convert wei to ether
+
+      if (!(valueWei == BigInt(0))) {
         transferTxSummary.push({
           blockNumber: tx.blockNumber,
           timestamp: parseInt(tx?.timeStamp.toString()),
           tokenAdress: "0x0",
           from: transactionReceipt.from,
           to: transactionReceipt.to,
-          amount: parseFloat(parseFloat(formatEther(value)).toFixed(3)),
+          amount: parseFloat(parseFloat(valueEther).toFixed(3)), // Convert ether string to a fixed decimal format
           symbol: "WETH",
           status: "OUT",
         });
@@ -267,6 +305,7 @@ export class Account {
         return [];
       } else {
         logger.error(`Error processing transaction: ${tx.hash} ${e}`);
+        console.log(e);
       }
       return [];
     }
@@ -291,7 +330,6 @@ export class Account {
       if (!fallbackTransfer) {
         fallbackTransfer = transferTx;
       }
-
       const currentTokenAddress = transferTx.tokenAdress;
       tokenHistory = await this.tokenHistoryRepository.findOne({
         where: {
@@ -335,14 +373,22 @@ export class Account {
     return { updatedTransferTxSummary: transferTxSummary, tokenHistory, tokenPath };
   }
 
-  updateTokenHistoryForEthPair(transferTx: TransferTx, tokenHistory: TokenHistory) {
+  async updateTokenHistoryForEthPair(transferTx: TransferTx, tokenHistory: TokenHistory) {
     let amount = Number(transferTx.amount);
     if (transferTx.status === "IN") {
       tokenHistory.EthGained += amount;
-      tokenHistory.performanceUSD += getETHtoUSD(amount, transferTx.timestamp);
+      tokenHistory.performanceUSD += await getETHtoUSD(
+        this.ethOhlcRepository,
+        amount,
+        transferTx.timestamp
+      );
     } else if (transferTx.status === "OUT") {
       tokenHistory.EthSpent += amount;
-      tokenHistory.performanceUSD -= getETHtoUSD(amount, transferTx.timestamp);
+      tokenHistory.performanceUSD -= await getETHtoUSD(
+        this.ethOhlcRepository,
+        amount,
+        transferTx.timestamp
+      );
     }
   }
 
@@ -357,10 +403,10 @@ export class Account {
     }
   }
 
-  updateTokenHistoryBasedOnPairType(
+  async updateTokenHistoryBasedOnPairType(
     transferTx: TransferTx,
     tokenHistory: TokenHistory
-  ): "ETH" | "USD" | null {
+  ): Promise<"ETH" | "USD" | null> {
     const pairType = OneContainsStrings(transferTx.symbol, ["usd"])
       ? "USD"
       : OneContainsStrings(transferTx.symbol, ["eth"])
@@ -369,7 +415,7 @@ export class Account {
     tokenHistory.pair = pairType;
 
     if (pairType === "ETH") {
-      this.updateTokenHistoryForEthPair(transferTx, tokenHistory);
+      await this.updateTokenHistoryForEthPair(transferTx, tokenHistory);
     } else if (pairType) {
       this.updateTokenHistoryForUsdPair(transferTx, tokenHistory);
     }
@@ -405,7 +451,11 @@ export class Account {
           }
           if (OneContainsStrings(transferTx.symbol, ["eth"])) {
             tokenHistory.EthSpent += amount;
-            tokenHistory.performanceUSD -= getETHtoUSD(amount, transferTx.timestamp);
+            tokenHistory.performanceUSD -= await getETHtoUSD(
+              this.ethOhlcRepository,
+              amount,
+              transferTx.timestamp
+            );
             break;
           }
         } else if (tokenPath === "OUT") {
@@ -416,7 +466,11 @@ export class Account {
           }
           if (OneContainsStrings(transferTx.symbol, ["eth"])) {
             tokenHistory.EthGained += amount;
-            tokenHistory.performanceUSD += getETHtoUSD(amount, transferTx.timestamp);
+            tokenHistory.performanceUSD += await getETHtoUSD(
+              this.ethOhlcRepository,
+              amount,
+              transferTx.timestamp
+            );
             break;
           }
         }

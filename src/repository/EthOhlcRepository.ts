@@ -9,15 +9,22 @@ export class EthOhlcRepository extends GenericRepository<EthOhlc> {
   }
 
   async findClosestRecord(inputTimestamp: number): Promise<EthOhlc | undefined> {
-    const closestRecord = await this.createQueryBuilder("entity")
-      .where("entity.timestampColumn > :lowerBound AND entity.timestampColumn < :upperBound", {
-        lowerBound: inputTimestamp - 60,
-        upperBound: inputTimestamp + 60,
+    const closestRecord = await this.createQueryBuilder("EthOhlc")
+      .where("ethOhlc.timestampOpen > :lowerBound AND ethOhlc.timestampOpen < :upperBound", {
+        lowerBound: inputTimestamp - 120,
+        upperBound: inputTimestamp + 120,
       })
-      .orderBy(`ABS(entity.timestampColumn - :inputTimestamp)`, "ASC")
+      .orderBy(`ABS(ethOhlc.timestampOpen - :inputTimestamp)`, "ASC")
       .setParameter("inputTimestamp", inputTimestamp)
       .getOne();
 
     return closestRecord;
+  }
+  async findLastRecordTimestamp(): Promise<number | undefined> {
+    const result = await this.createQueryBuilder("ethOhlc")
+      .select("ethOhlc.timestampOpen")
+      .orderBy("ethOhlc.timestampOpen", "DESC")
+      .getOne();
+    return result?.timestampOpen;
   }
 }
