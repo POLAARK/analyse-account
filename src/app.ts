@@ -1,20 +1,19 @@
-import "reflect-metadata";
-import { Client, TextChannel, GatewayIntentBits, Events, Collection } from "discord.js";
+import { Client, Collection, Events, GatewayIntentBits, TextChannel } from "discord.js";
 import dotenv from "dotenv";
 import * as fs from "fs";
-import path from "path";
-import { logger } from "./modules/logger/Logger";
+import { Logger } from "./logger";
+import { ormConfig } from "ormconfig";
+import path, { dirname } from "path";
 import "reflect-metadata";
-import { fileURLToPath } from "url";
-import { dirname } from "path";
 import { DataSource } from "typeorm";
 import { MysqlConnectionOptions } from "typeorm/driver/mysql/MysqlConnectionOptions";
-import { ormConfig } from "ormconfig";
+import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 dotenv.config({ path: __dirname + "/../.env" });
 
+const logger = new Logger();
 export const appDataSource = new DataSource({
   logging: true,
   ...(ormConfig as MysqlConnectionOptions),

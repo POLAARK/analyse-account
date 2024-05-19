@@ -13,3 +13,7 @@ export const ALL_PROVIDERS_FAILED = "All Providers failed executing this request
 
 //Fetch
 export const ERROR_FETCHING_DATA = "Error fetching data";
+
+//Config
+export const INVALID_CONFIG =
+  "Invalid config, please check format and check if you have inputed wallet addresses";

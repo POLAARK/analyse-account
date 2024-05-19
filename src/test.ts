@@ -1,8 +1,8 @@
 import { appDataSource } from "app.js";
-import { Account } from "./modules/account/Account.js";
-import { TransactionStreamer } from "./modules/streamer/TransactionStreamer.js";
-import { TokenPriceService } from "modules/tokenPriceHistory/tokenPriceService.js";
-import { JsonRpcProviderManager } from "modules/jsonRpcProvider/JsonRpcProviderManager.js";
+import { AccountService } from "./account/AccountService.js";
+import { TransactionStreamer } from "./streamer/TransactionStreamer.js";
+import { TokenPriceService } from "tokenHistory/tokenPriceService.js";
+import { JsonRpcProviderManager } from "jsonRpcProvider/JsonRpcProviderManager.js";
 import { TransactionReceipt } from "ethers";
 
 appDataSource.initialize().then(async () => {

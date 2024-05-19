@@ -3,7 +3,9 @@ import { config } from "dotenv";
 import fs from "node:fs";
 import path, { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
-import { logger } from "./modules/logger/Logger";
+import { Logger } from "./logger/Logger";
+
+const logger = new Logger();
 
 config({ path: "src/../.env" });
 const token = process.env.DISCORD_TOKEN;
