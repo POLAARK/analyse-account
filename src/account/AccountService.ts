@@ -1,30 +1,29 @@
 import { config } from "dotenv";
-import { IEthConversionService } from "ethToUsdConversion/IEthConversionService";
+import { CustomError } from "error/customError";
 import { inject, injectable } from "inversify";
 import SERVICE_IDENTIFIER from "ioc_container/identifiers";
 import { ILogger } from "logger";
-import { CustomError } from "error/customError";
 import { ITokenHistoryRepository } from "tokenHistory/ITokenHistoryRepository";
 import { TokenHistory } from "tokenHistory/TokenHistory";
 import { ITransactionRepository, TransferTransaction } from "transaction";
 import { ITransactionService } from "transaction/ITransactionService";
-import { Transaction } from "transaction/Transaction";
 import { MoreThan } from "typeorm";
 import { IWalletRepository } from "wallet";
 import { Wallet } from "wallet/Wallet";
-import { OneContainsStrings, containsUsdOrEth } from "../utils/stringUtils";
+import { OneContainsStrings } from "../utils/stringUtils";
+import { IEthOhlcService } from "ethOhlc";
 
 config({ path: "src/../.env" });
 
 @injectable()
 export class AccountService {
-  transactionList: Transaction[] = [];
-  address: string;
-  walletEntity: Wallet;
+  // transactionList: Transaction[] = [];
+  // address: string;
+  // walletEntity: Wallet;
   constructor(
     @inject(SERVICE_IDENTIFIER.Logger) private readonly logger: ILogger,
     @inject(SERVICE_IDENTIFIER.EthOhlcService)
-    private readonly ethConversionService: IEthConversionService,
+    private readonly ethOhlcService: IEthOhlcService,
     @inject(SERVICE_IDENTIFIER.TransactionService)
     private readonly transactionService: ITransactionService,
     @inject(SERVICE_IDENTIFIER.TransactionService)
@@ -35,18 +34,20 @@ export class AccountService {
     private readonly walletRepository: IWalletRepository
   ) {}
 
-  setAddress(address: string) {
-    this.address = address;
-  }
-
-  async updateBalances({
-    transferTxSummary,
-  }: {
-    transferTxSummary: TransferTransaction[];
-  }): Promise<void> {
+  async updateBalances(
+    {
+      transferTxSummary,
+    }: {
+      transferTxSummary: TransferTransaction[];
+    },
+    address: string
+  ): Promise<void> {
     let pairType: "ETH" | "USD" | null;
 
-    const result = await this.findMainTokenTradedOnTransaction(transferTxSummary, this.address);
+    const result = await this.transactionService.findMainTokenTradedOnTransaction(
+      transferTxSummary,
+      address
+    );
     if (!result.tokenHistory) return;
 
     const updatedTransferTransactionSummary: TransferTransaction[] =
@@ -74,23 +75,23 @@ export class AccountService {
     return;
   }
 
-  async getAccountTradingHistory(timestamp: number): Promise<void> {
+  async getAccountTradingHistory(address: string, timestamp: number): Promise<void> {
     // Fetch only transactions newer than `usedTimestamp`
     const transactions = await this.transactionRepository.find({
-      where: { wallet: { address: this.address }, timeStamp: MoreThan(timestamp) },
+      where: { wallet: { address: address }, timeStamp: MoreThan(timestamp) },
       order: { timeStamp: "DESC" },
     });
 
     const transactionPromises = transactions.map(async (transaction) => {
       try {
         const transactionSummary =
-          await this.transactionService.getTransactionTransferSummaryFromLog(
-            transaction,
-            this.address
-          );
-        return this.updateBalances({
-          transferTxSummary: [...transactionSummary],
-        });
+          await this.transactionService.getTransactionTransferSummaryFromLog(transaction, address);
+        return this.updateBalances(
+          {
+            transferTxSummary: [...transactionSummary],
+          },
+          address
+        );
       } catch (error) {
         this.logger.error("Error during getTransactionTransferSummary and updateBalances");
         this.logger.error(error);
@@ -100,7 +101,7 @@ export class AccountService {
     try {
       await Promise.all(transactionPromises);
 
-      const wallet = await this.walletRepository.findOneBy({ where: { address: this.address } });
+      const wallet = await this.walletRepository.findOneBy({ where: { address: address } });
       await this.updateWalletTimestamps(timestamp, wallet);
       await this.updateSummary(wallet);
       await this.walletRepository.save(wallet);
@@ -123,10 +124,11 @@ export class AccountService {
     }
   }
 
+  //TODOPB : To be modified
   async updateSummary(wallet: Wallet) {
     try {
       const tokenHistories = await this.tokenHistoryRepository.find({
-        where: { walletAddress: this.address },
+        where: { walletAddress: wallet.address },
       });
       wallet.numberOfTokensTraded = tokenHistories.length;
       wallet.numberOfTxs = tokenHistories.reduce(
@@ -149,13 +151,13 @@ export class AccountService {
     let amount = Number(transferTx.amount);
     if (transferTx.status === "IN") {
       tokenHistory.EthGained += amount;
-      tokenHistory.performanceUSD += await this.ethConversionService.getETHtoUSD(
+      tokenHistory.performanceUSD += await this.ethOhlcService.getETHtoUSD(
         amount,
         transferTx.timestamp
       );
     } else if (transferTx.status === "OUT") {
       tokenHistory.EthSpent += amount;
-      tokenHistory.performanceUSD -= await this.ethConversionService.getETHtoUSD(
+      tokenHistory.performanceUSD -= await this.ethOhlcService.getETHtoUSD(
         amount,
         transferTx.timestamp
       );
@@ -221,7 +223,7 @@ export class AccountService {
           }
           if (OneContainsStrings(transferTx.symbol, ["eth"])) {
             tokenHistory.EthSpent += amount;
-            tokenHistory.performanceUSD -= await this.ethConversionService.getETHtoUSD(
+            tokenHistory.performanceUSD -= await this.ethOhlcService.getETHtoUSD(
               amount,
               transferTx.timestamp
             );
@@ -235,7 +237,7 @@ export class AccountService {
           }
           if (OneContainsStrings(transferTx.symbol, ["eth"])) {
             tokenHistory.EthGained += amount;
-            tokenHistory.performanceUSD += await this.ethConversionService.getETHtoUSD(
+            tokenHistory.performanceUSD += await this.ethOhlcService.getETHtoUSD(
               amount,
               transferTx.timestamp
             );
