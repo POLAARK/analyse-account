@@ -1,15 +1,13 @@
 import { ConfigObject } from "config/Config";
 import { AttachmentBuilder, CommandInteraction, SlashCommandBuilder } from "discord.js";
+import { IEthOhlcService } from "ethOhlc";
 import * as fs from "fs";
-import path from "path";
-import { fileURLToPath } from "url";
-import { AccountService } from "../account/AccountService";
-import { TransactionStreamer } from "../streamer/TransactionStreamer";
 import { container } from "ioc_container/container";
 import SERVICE_IDENTIFIER from "ioc_container/identifiers";
-import { IEthOhlcRepository, IEthOhlcService } from "ethOhlc";
-import { walletRepository } from "modules/repository/Repositories";
-import { IWalletRepository } from "wallet";
+import path from "path";
+import { fileURLToPath } from "url";
+import { IWalletRepository, IWalletService } from "wallet";
+import { TransactionStreamerService } from "../streamer/TransactionStreamerService";
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
 
@@ -29,6 +27,10 @@ export default {
   async execute(interaction: CommandInteraction) {
     const ethOhlcService = container.get<IEthOhlcService>(SERVICE_IDENTIFIER.EthOhlcService);
     const walletRepository = container.get<IWalletRepository>(SERVICE_IDENTIFIER.WalletRepository);
+    const walletService = container.get<IWalletService>(SERVICE_IDENTIFIER.WalletService);
+    const streamer = container.get<TransactionStreamerService>(
+      SERVICE_IDENTIFIER.TransactionStreamer
+    );
     const walletAddress = interaction.options.get("target", true).value;
     if (typeof walletAddress !== "string") {
       throw new Error("Wallet Address has to be a string");
@@ -40,9 +42,6 @@ export default {
         : Date.now() / 1000 - 365 * 24 * 60 * 60 + (365 * 24 * 60 * 60) / 2
     );
     await interaction.reply("Analyse started");
-    const account = new AccountService(String(walletAddress));
-
-    const streamer = new TransactionStreamer([account]);
 
     const configObject = new ConfigObject(path.join(dirname, "../config/configFile.json"));
 
@@ -51,8 +50,9 @@ export default {
       configObject.rpcConfigs.poolAddress
     );
 
-    await streamer.builtAccountTransactionHistory();
-    await account.getAccountTradingHistory(timestamp);
+    await streamer.buildWalletTransactionHistory();
+    await walletService.createWalletTradingHistory(walletAddress, timestamp);
+
     const wallet = await walletRepository.findOneBy({
       where: { address: walletAddress },
       relations: ["tokenHistories"],

@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { Client, Collection, Events, GatewayIntentBits, TextChannel } from "discord.js";
 import dotenv from "dotenv";
 import * as fs from "fs";
@@ -38,12 +39,12 @@ appDataSource
 
     client.commands = new Collection();
 
-    const commandsPath = __dirname + "/modules/discord/";
+    const commandsPath = __dirname + "/discord/";
     const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith(".ts"));
 
     for (const file of commandFiles) {
       const filePath = path.join(commandsPath, file);
-      const command = (await import(`./modules/discord/${file}`))?.default;
+      const command = (await import(`discord/${file}`))?.default;
       // Set a new item in the Collection with the key as the command name and the value as the exported module
       if ("data" in command && "execute" in command) {
         client.commands.set(command.data.name, command);

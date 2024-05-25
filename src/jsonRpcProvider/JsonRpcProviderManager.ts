@@ -6,37 +6,39 @@ import {
 } from "constants/errors";
 import { JsonRpcProvider, TransactionReceipt } from "ethers";
 import { CustomError } from "error/customError";
-import { logger } from "logger/Logger";
 import path from "path";
 import { fileURLToPath } from "url";
 import { ConfigObject } from "../config/Config";
 import { IJsonRpcProviderManager } from "./IJsonRpcProviderManager";
+import { inject, injectable } from "inversify";
+import SERVICE_IDENTIFIER from "ioc_container/identifiers";
+import { ILogger } from "logger";
 
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
 
+@injectable()
 export class JsonRpcProviderManager implements IJsonRpcProviderManager {
-  providers: JsonRpcProvider[] = [];
   currentProviderIndex: number;
   configObject = new ConfigObject(path.join(dirname, "../config/configFile.json"));
-
-  constructor() {
+  rpcProviders: JsonRpcProvider[] = [];
+  constructor(@inject(SERVICE_IDENTIFIER.Logger) private readonly logger: ILogger) {
     if (!this.configObject.rpcConfigs.urls.length) {
       throw new CustomError(INVALID_CONFIG);
     }
+    const network = this.configObject.rpcConfigs.network;
     for (const url of this.configObject.rpcConfigs.urls) {
-      let currentProvider = new JsonRpcProvider(url, this.configObject.rpcConfigs.network);
-      console.log(currentProvider._getConnection());
-      this.providers.push(currentProvider);
+      const provider = new JsonRpcProvider(url, network);
+      this.rpcProviders.push(provider);
     }
     this.currentProviderIndex = 0;
   }
 
   async callProviderMethod<T>(methodName: string, args: any[], timeout = 1000): Promise<T> {
     let attempts = 0;
-    while (attempts < this.providers.length) {
+    while (attempts < this.rpcProviders.length) {
       try {
-        const provider = this.providers[this.currentProviderIndex];
+        const provider = this.rpcProviders[this.currentProviderIndex];
         const result: T = await this.callProviderMethodWithTimeout<T>(
           provider,
           methodName,
@@ -51,11 +53,10 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
         return result;
       } catch (error) {
         if (error == `timeout occured for ${methodName}`) {
-          // console.log("timeout on call jsonRpc method");
         } else {
-          logger.error(error);
+          this.logger.error(error);
         }
-        this.currentProviderIndex = (this.currentProviderIndex + 1) % this.providers.length;
+        this.currentProviderIndex = (this.currentProviderIndex + 1) % this.rpcProviders.length;
         attempts++;
       }
     }
@@ -106,6 +107,6 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
   }
 
   getCurrentProvider(): JsonRpcProvider {
-    return this.providers[this.currentProviderIndex];
+    return this.rpcProviders[this.currentProviderIndex];
   }
 }

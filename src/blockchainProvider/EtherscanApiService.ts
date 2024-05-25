@@ -39,12 +39,12 @@ export class EtherscanApiService implements IBlockchainScanApiService {
       `&apikey=${this.#API_KEYS}`;
     let response: any;
     try {
-      response = await fetchHttpJson(this.#endpoint + parameters);
+      response = await fetchHttpJson(this.#endpoint + parameters, {}, this.logger);
     } catch (error) {
       if (error.statusCode === 429 || error.message.includes("rate limit")) {
         this.logger.error("Rate limit reached, retrying in 15 minutes...");
         await new Promise((resolve) => setTimeout(resolve, 900000));
-        response = await fetchHttpJson(this.#endpoint + parameters);
+        response = await fetchHttpJson(this.#endpoint + parameters, {}, this.logger);
       } else {
         throw Error(error);
       }
@@ -85,12 +85,12 @@ export class EtherscanApiService implements IBlockchainScanApiService {
       `&apikey=${this.#API_KEYS}`;
     let response: any;
     try {
-      response = await fetchHttpJson(this.#endpoint + parameters);
+      response = await fetchHttpJson(this.#endpoint + parameters, {}, this.logger);
     } catch (error) {
       if (error.statusCode === 429 || error.message.includes("rate limit")) {
         this.logger.error("Rate limit reached, retrying in 15 minutes...");
         await new Promise((resolve) => setTimeout(resolve, 900000));
-        response = await fetchHttpJson(this.#endpoint + parameters);
+        response = await fetchHttpJson(this.#endpoint + parameters, {}, this.logger);
       } else {
         throw Error(error);
       }

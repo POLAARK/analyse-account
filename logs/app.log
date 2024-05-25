@@ -1,0 +1,10 @@
+2024-05-25T17:39:41.352Z [[31merror[39m]: Init error :  
+2024-05-25T17:46:39.470Z [[31merror[39m]: Init error :  
+2024-05-25T17:47:11.759Z [[31merror[39m]: Init error :  
+2024-05-25T17:47:11.760Z [[31merror[39m]: Error: ENOENT: no such file or directory, scandir '/Users/paul/Documents/Perso/Code/analyse-account/src/modules/discord/' 
+2024-05-25T17:52:36.622Z [[31merror[39m]: Init error :  
+2024-05-25T17:52:36.623Z [[31merror[39m]: Error: ENOENT: no such file or directory, scandir '/Users/paul/Documents/Perso/Code/analyse-account/src/modules/discord/' 
+2024-05-25T17:56:23.725Z [[31merror[39m]: Init error :  
+2024-05-25T17:56:23.725Z [[31merror[39m]: Error: ENOENT: no such file or directory, scandir '/Users/paul/Documents/Perso/Code/analyse-account/src./discord/' 
+2024-05-25T17:56:43.492Z [[31merror[39m]: Init error :  
+2024-05-25T17:56:43.493Z [[31merror[39m]: Error: Cannot find package 'src' imported from /Users/paul/Documents/Perso/Code/analyse-account/src/app.ts 

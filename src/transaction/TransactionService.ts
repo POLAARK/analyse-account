@@ -178,21 +178,25 @@ export class TransactionService {
     let tokenHistory: TokenHistory | undefined;
     let tokenPath: "IN" | "OUT" | undefined;
     for (const transferTx of transferTxSummary) {
+      // Skip transactions that are either incomplete (can't define if they are in or out the current wallet) or do not involve USD or ETH.
       if (!transferTx?.status || containsUsdOrEth(transferTx.symbol)) {
-        continue; // Skip transactions that are either incomplete or do not involve USD or ETH.
+        continue;
       }
 
+      // If all transactions
       if (!fallbackTransfer) {
         fallbackTransfer = transferTx;
       }
-      const currentTokenAddress = transferTx.tokenAdress;
+
       tokenHistory = await this.tokenHistoryRepository.findOneBy({
         where: {
-          tokenAddress: currentTokenAddress,
+          tokenAddress: transferTx.tokenAdress,
           walletAddress: walletAddress,
         },
       });
 
+      // Determines the current transaction to work.
+      // We will update account and token history values using this Transfer
       if (tokenHistory) {
         const transactionIndex = transferTxSummary.indexOf(transferTx);
         tokenPath = transferTx.status;
@@ -203,6 +207,9 @@ export class TransactionService {
       }
     }
 
+    // If no token have been found
+    // But there is an acceptable IN OUT Transfer (fallback)
+    // We record a new tokenHistory
     if (!tokenHistory && fallbackTransfer) {
       let tokenHistory = new TokenHistory();
       tokenHistory.walletAddress = walletAddress;

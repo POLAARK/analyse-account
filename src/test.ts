@@ -1,13 +1,15 @@
+import "reflect-metadata";
 import { appDataSource } from "app.js";
-import { AccountService } from "./account/AccountService.js";
-import { TransactionStreamer } from "./streamer/TransactionStreamer.js";
-import { TokenPriceService } from "tokenHistory/tokenPriceService.js";
-import { JsonRpcProviderManager } from "jsonRpcProvider/JsonRpcProviderManager.js";
 import { TransactionReceipt } from "ethers";
+import { container } from "ioc_container/container.js";
+import SERVICE_IDENTIFIER from "ioc_container/identifiers.js";
+import { JsonRpcProviderManager } from "jsonRpcProvider/JsonRpcProviderManager.js";
 
 appDataSource.initialize().then(async () => {
   await appDataSource.synchronize().catch((error) => {});
-  const jsonRpcProviderManager = new JsonRpcProviderManager();
+  const jsonRpcProviderManager = container.get<JsonRpcProviderManager>(
+    SERVICE_IDENTIFIER.JsonRpcProviderManager
+  );
   const transactionReceipt = await jsonRpcProviderManager.callProviderMethod<TransactionReceipt>(
     "getTransactionReceipt",
     ["0xc34cb409aad729bd8b05389ea8707c37b452cdbb9d3a413833001d4b96cf2f3f"],

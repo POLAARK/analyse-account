@@ -11,6 +11,10 @@ const SERVICE_IDENTIFIER = {
   TokenHistoryRepository: Symbol.for("TokenHistoryRepository"),
   EtherscanApiService: Symbol.for("EtherscanApiService"),
   WalletRepository: Symbol.for("WalletRepository"),
+  TokenHistoryService: Symbol.for("TokenHistoryService"),
+  WalletService: Symbol.for("WalletService"),
+  TransactionStreamer: Symbol.for("TransactionStreamer"),
+  RpcProviders: Symbol.for("RpcProviders"),
 };
 
 export default SERVICE_IDENTIFIER;

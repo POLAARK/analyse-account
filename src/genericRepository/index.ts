@@ -1,3 +1,2 @@
-export * from './IGenericRepository';
-export * from './IRepository';
-export * from './TypeOrmRepository';
+export * from "./IGenericRepository";
+export * from "./TypeOrmRepository";

@@ -56,19 +56,19 @@ export class Logger implements ILogger {
     });
   }
 
-  info(message: string, meta?: any): void {
+  info(message: any, meta?: any): void {
     this.logger.info(message, meta);
   }
 
-  warn(message: string, meta?: any): void {
+  warn(message: any, meta?: any): void {
     this.logger.warn(message, meta);
   }
 
-  error(message: string, meta?: any): void {
+  error(message: any, meta?: any): void {
     this.logger.error(message, meta);
   }
 
-  debug(message: string, meta?: any): void {
+  debug(message: any, meta?: any): void {
     this.logger.debug(message, meta);
   }
 }

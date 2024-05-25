@@ -1,12 +1,12 @@
-import fetch from "node-fetch";
 import fs from "fs";
-import puppeteer, { Browser, HTTPResponse, Page } from "puppeteer";
-import { Http2SecureServer } from "http2";
-import { logger } from "../logger/Logger";
+import { ILogger } from "logger";
+import fetch from "node-fetch";
+import puppeteer, { Page } from "puppeteer";
 
 export const fetchhttpJsonPuppeteer = async function (
   url: string,
-  jsonRequestUrl: string
+  jsonRequestUrl: string,
+  logger: ILogger
 ): Promise<any> {
   const browser = await puppeteer.launch({ headless: false });
   const page = await browser.newPage();
@@ -42,7 +42,7 @@ export const fetchhttpJsonPuppeteer = async function (
 export const fetchhttpJsonPuppeteerTokenAnalysor = async function (
   url: string,
   jsonRequestUrl: string,
-  browser: Browser,
+  logger: ILogger,
   page: Page
 ): Promise<any> {
   const divSelector = `div[data-id="0xca3f508b8e4dd382ee878a314789373d80a5190a"][data-name="BIFI"][data-token-chain="bsc"]`;
@@ -73,7 +73,8 @@ export const fetchhttpJsonPuppeteerTokenAnalysor = async function (
 
 export const fetchhttpJsonPuppeteerLoadNewPage = async function (
   url: string,
-  jsonRequestUrl: string
+  jsonRequestUrl: string,
+  logger: ILogger
 ): Promise<any> {
   // Launch the browser
   const browser = await puppeteer.launch({ headless: true });
@@ -119,7 +120,11 @@ export const fetchHttp = async function (url: string, header = {}): Promise<stri
   return body;
 };
 
-export const fetchHttpJson = async function (url: string, header = {}): Promise<any> {
+export const fetchHttpJson = async function (
+  url: string,
+  header = {},
+  logger: ILogger
+): Promise<any> {
   let body: unknown;
   const response = await fetch(url, header);
 
@@ -136,7 +141,8 @@ export const fetchHttpJson = async function (url: string, header = {}): Promise<
 export const fetchHttpJsonHandlingTooManyRequest = async function (
   url: string,
   count: number = 0,
-  header = {}
+  header = {},
+  logger: ILogger
 ): Promise<any> {
   let body: unknown;
   const response = await fetch(url, header);
@@ -145,7 +151,7 @@ export const fetchHttpJsonHandlingTooManyRequest = async function (
     while (counter < 10) {
       counter += 1;
       await new Promise((resolve) => setTimeout(resolve, 60000));
-      return fetchHttpJsonHandlingTooManyRequest(url, counter);
+      return fetchHttpJsonHandlingTooManyRequest(url, counter, {}, logger);
     }
     return { message: "Too Many Requests" };
   }

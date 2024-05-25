@@ -1,48 +1,67 @@
-import { AccountService } from "../account/AccountService";
-import path from "path";
-import fs from "fs";
-import { fileURLToPath } from "url";
-import { config } from "dotenv";
-import EtherscanApiService from "../blockchainProvider/EtherscanApiService";
-import { TransactionResponseExtended } from "../transaction/transaction.entity";
-import { BlockchainTransaction } from "../blockchainProvider/BlockchainTypes";
-import { JsonRpcProviderManager } from "../jsonRpcProvider/JsonRpcProviderManager";
-import { transactionRepository, walletRepository } from "modules/repository/Repositories";
-import { Wallet } from "wallet/Wallet";
-import { Transaction } from "transaction/Transaction";
-import { CustomError } from "error/customError";
-import { ERROR_SAVING_ENTITY_IN_DATABASE } from "constants/errors";
-import { inject, injectable } from "inversify";
 import { IBlockchainScanApiService } from "blockchainProvider";
+import { ERROR_SAVING_ENTITY_IN_DATABASE } from "constants/errors";
+import { config } from "dotenv";
+import { CustomError } from "error/customError";
+import { inject, injectable } from "inversify";
 import SERVICE_IDENTIFIER from "ioc_container/identifiers";
+import { IJsonRpcProviderManager } from "jsonRpcProvider";
 import { ILogger } from "logger";
+import { Transaction } from "transaction/Transaction";
+import { Wallet } from "wallet/Wallet";
+import { BlockchainTransaction } from "../blockchainProvider/BlockchainTypes";
+import { TokenHistoryService } from "../tokenHistory/TokenHistoryService";
+import { IWalletRepository } from "wallet";
+import { ITransactionRepository } from "transaction";
 
 config({ path: "src/../.env" });
 @injectable()
-export class TransactionStreamer {
-  jsonRpcProviderManager: JsonRpcProviderManager = new JsonRpcProviderManager();
-  accountList: Set<AccountService>;
+export class TransactionStreamerService {
+  walletList: Set<string>;
   constructor(
     @inject(SERVICE_IDENTIFIER.EtherscanApiService)
     private readonly etherscanApiService: IBlockchainScanApiService,
     @inject(SERVICE_IDENTIFIER.Logger) private readonly logger: ILogger,
-    accountList: AccountService[]
-  ) {
-    this.accountList = new Set(accountList);
+    @inject(SERVICE_IDENTIFIER.JsonRpcProviderManager)
+    private readonly jsonRpcProviderManager: IJsonRpcProviderManager,
+    @inject(SERVICE_IDENTIFIER.WalletRepository)
+    private readonly walletRepository: IWalletRepository,
+    @inject(SERVICE_IDENTIFIER.TransactionRepository)
+    private readonly transactionRepository: ITransactionRepository
+  ) {}
+
+  /**
+   * Wallet list setter
+   *
+   * @param walletList
+   */
+  setWalletList(walletList: string[]) {
+    this.walletList = new Set(walletList);
   }
 
-  async builtAccountTransactionHistory(lastBlock?: number, startBlock: number = 0) {
+  /**
+   * Wallet list getter
+   *
+   * @returns walletList
+   */
+  getWalletList() {
+    if (this.walletList) {
+      return this.walletList;
+    }
+    throw new CustomError("WALLET_LIST_UNDEFINED", "Wallet list is undefined");
+  }
+
+  async buildWalletTransactionHistory(lastBlock?: number, startBlock: number = 0) {
     try {
       // TODO, we should get lastBlock by transaction
       const latest = lastBlock
         ? lastBlock
         : await this.jsonRpcProviderManager.callProviderMethod<number>("getBlockNumber", []);
       let constStartBlock;
-      for (let account of this.accountList) {
+      for (let walletAddress of this.walletList) {
         // Check if the file exists and read the last updated block
         let wallet = new Wallet();
         try {
-          wallet = await walletRepository.findOneBy({ address: account.address });
+          wallet = await this.walletRepository.findOneBy({ address: walletAddress });
         } catch (err) {
           console.log("builtAccountTransactionHistory");
           console.log(err);
@@ -50,8 +69,8 @@ export class TransactionStreamer {
           }
         }
         if (!wallet) {
-          wallet = await walletRepository.create({
-            address: account.address,
+          wallet = await this.walletRepository.save({
+            address: walletAddress,
             lastBlockUpdated: 0,
             transactions: [],
             numberOfTokensTraded: 0,
@@ -66,13 +85,13 @@ export class TransactionStreamer {
         constStartBlock = wallet.lastBlockUpdated + 1;
 
         const history = await this.etherscanApiService.constructGlobalTransactionHistory(
-          account.address,
+          walletAddress,
           constStartBlock,
           latest
         );
 
         wallet.lastBlockUpdated = latest;
-        await walletRepository.save(wallet);
+        await this.walletRepository.save(wallet);
         await this.saveHistoryToDB(history, wallet);
       }
     } catch (error) {
@@ -101,7 +120,7 @@ export class TransactionStreamer {
         transaction.input = tx.input;
         transaction.contractAddress = tx.contractAddress;
 
-        await transactionRepository.save(transaction);
+        await this.transactionRepository.save(transaction);
       }
     } catch (error) {
       this.logger.error(error);
@@ -113,14 +132,14 @@ export class TransactionStreamer {
     }
   }
 
-  addAccountsToStreamer(accountList: AccountService[]) {
-    for (let account of accountList) {
-      if (this.accountList.has(account)) {
+  addWallets(walletList: string[]) {
+    for (let walletAddress of walletList) {
+      if (this.walletList.has(walletAddress)) {
         throw new Error(
-          "Account already in list, here is the list " + Array.from(this.accountList).toString()
+          "Account already in list, here is the list " + Array.from(this.walletList).toString()
         );
       } else {
-        this.accountList.add(account);
+        this.walletList.add(walletAddress);
       }
     }
   }

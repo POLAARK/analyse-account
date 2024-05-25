@@ -1,6 +1,9 @@
 import { Entity, Column, Index, ManyToOne, JoinColumn, PrimaryColumn } from "typeorm";
 import { Wallet } from "../wallet/Wallet";
 
+/**
+ * Identifies the history of a wallet trading performance on a specific token
+ */
 @Entity()
 export class TokenHistory {
   @ManyToOne((type) => Wallet)
