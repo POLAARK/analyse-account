@@ -1,3 +1,4 @@
+import "reflect-metadata";
 import { REST, Routes } from "discord.js";
 import { config } from "dotenv";
 import fs from "node:fs";
@@ -47,7 +48,6 @@ const rest = new REST().setToken(token);
       body: commands,
     });
     // .catch(() => {});
-
     logger.info(`Successfully reloaded ${data.length} application (/) commands.`);
   } catch (error) {
     // And of course, make sure you catch and log any errors!

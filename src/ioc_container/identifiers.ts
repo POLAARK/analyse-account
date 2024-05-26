@@ -13,7 +13,6 @@ const SERVICE_IDENTIFIER = {
   WalletRepository: Symbol.for("WalletRepository"),
   TokenHistoryService: Symbol.for("TokenHistoryService"),
   WalletService: Symbol.for("WalletService"),
-  TransactionStreamer: Symbol.for("TransactionStreamer"),
   RpcProviders: Symbol.for("RpcProviders"),
 };
 

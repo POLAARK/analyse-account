@@ -35,7 +35,7 @@ container.bind<ITokenService>(SERVICE_IDENTIFIER.TokenService).to(TokenService);
 container.bind<ITransactionService>(SERVICE_IDENTIFIER.TransactionService).to(TransactionService);
 
 container
-  .bind<ITransactionRepository>(SERVICE_IDENTIFIER.TransactionService)
+  .bind<ITransactionRepository>(SERVICE_IDENTIFIER.TransactionRepository)
   .to(TransactionRepository);
 
 container

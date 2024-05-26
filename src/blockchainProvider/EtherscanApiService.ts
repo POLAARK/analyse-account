@@ -4,21 +4,15 @@ import { fetchHttpJson } from "../utils/fetchUtils";
 import SERVICE_IDENTIFIER from "ioc_container/identifiers";
 import { ILogger } from "../logger/ILogger";
 import { IBlockchainScanApiService } from "./IBlockchainScanApiService";
-
+import dotenv from "dotenv";
 @injectable()
 export class EtherscanApiService implements IBlockchainScanApiService {
-  #API_KEYS: string;
   #RETRY_COUNT: number = 3;
   #endpoint: string;
-
-  constructor(
-    @inject(SERVICE_IDENTIFIER.Logger) private readonly logger: ILogger,
-    apiKey?: string
-  ) {
-    this.#API_KEYS = apiKey;
+  #API_KEYS = process.env.ETHERSCAN_API_KEY;
+  constructor(@inject(SERVICE_IDENTIFIER.Logger) private readonly logger: ILogger) {
     this.#endpoint = "https://api.etherscan.io/";
   }
-
   async getNormalTransactions(
     address: string,
     startBlock: number,

@@ -1,4 +1,4 @@
-import { EthOhlc } from "ethOhlc/ETHohlc";
+import { EthOhlc } from "ethOhlc/EthOhlc";
 import { TypeOrmRepository } from "../genericRepository/TypeOrmRepository";
 import { DataSource } from "typeorm";
 import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
@@ -7,8 +7,8 @@ import { IEthOhlcRepository } from "./IEthOhlcRepository";
 
 @injectable()
 export class EthOhlcRepository extends TypeOrmRepository<EthOhlc> implements IEthOhlcRepository {
-  constructor(@inject(SERVICE_IDENTIFIER.DataSource) dataSource: DataSource) {
-    super(EthOhlc, dataSource);
+  constructor() {
+    super(EthOhlc);
   }
 
   async findClosestRecord(inputTimestamp: number): Promise<EthOhlc | undefined> {

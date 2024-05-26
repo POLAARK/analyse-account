@@ -33,7 +33,14 @@ appDataSource
       logger.error("No discord Token for the app");
       throw new Error("No discord token provided ");
     }
-    const client: any = new Client({ intents: [GatewayIntentBits.Guilds] });
+    const client: any = new Client({
+      intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMessages,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMessageReactions,
+      ],
+    });
 
     const channelId = process.env.CHANNEL_ID;
 
@@ -64,7 +71,6 @@ appDataSource
         logger.info(interaction);
         return;
       }
-
       const command = interaction.client.commands.get(interaction.commandName);
 
       if (!command) {

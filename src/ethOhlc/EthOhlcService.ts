@@ -40,6 +40,8 @@ export class EthOhlService implements IEthOhlcService {
     endTimestamp?: number
   ): Promise<void> {
     const syveKey = process.env.SYVE_API_KEY;
+    console.log("Here");
+
     let current_start = startTimestamp
       ? startTimestamp
       : await this.ethOhlcRepository.findLastRecordTimestamp();

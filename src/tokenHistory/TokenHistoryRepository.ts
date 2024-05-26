@@ -1,9 +1,8 @@
 import { ERROR_SAVING_ENTITY_IN_DATABASE } from "constants/errors";
+import { CustomError } from "error/customError";
 import { inject, injectable } from "inversify";
 import { Logger } from "logger/Logger";
-import { CustomError } from "error/customError";
 import { TokenHistory } from "tokenHistory/TokenHistory";
-import { DataSource } from "typeorm";
 import { TypeOrmRepository } from "../genericRepository/TypeOrmRepository";
 import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
 import { ITokenHistoryRepository } from "./ITokenHistoryRepository";
@@ -14,11 +13,8 @@ export class TokenHistoryRepository
   implements ITokenHistoryRepository
 {
   // Assuming you have a predefined data source like `appDataSource`
-  constructor(
-    @inject(SERVICE_IDENTIFIER.DataSource) dataSource: DataSource,
-    @inject(SERVICE_IDENTIFIER.Logger) private readonly logger: Logger
-  ) {
-    super(TokenHistory, dataSource);
+  constructor(@inject(SERVICE_IDENTIFIER.Logger) private readonly logger: Logger) {
+    super(TokenHistory);
   }
 
   async saveOrUpdateTokenHistory(entity: TokenHistory, maxRetries = 3): Promise<TokenHistory> {

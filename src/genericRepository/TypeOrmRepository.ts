@@ -1,17 +1,16 @@
+import { injectable, unmanaged } from "inversify";
+import { container } from "ioc_container/container";
+import SERVICE_IDENTIFIER from "ioc_container/identifiers";
 import { DataSource, FindManyOptions, FindOptionsWhere, Repository } from "typeorm";
 import { EntityTarget } from "typeorm/common/EntityTarget";
 import { IGenericRepository } from "./IGenericRepository";
-import { inject, injectable } from "inversify";
-import SERVICE_IDENTIFIER from "ioc_container/identifiers";
 
 @injectable()
 export class TypeOrmRepository<T> implements IGenericRepository<T> {
   repository: Repository<T>;
-  constructor(
-    target: EntityTarget<T>,
-    @inject(SERVICE_IDENTIFIER.DataSource) private readonly dataSource: DataSource
-  ) {
-    this.repository = new Repository(target, dataSource.createEntityManager());
+  dataSource = container.get<DataSource>(SERVICE_IDENTIFIER.DataSource);
+  constructor(@unmanaged() target: EntityTarget<T>) {
+    this.repository = new Repository(target, this.dataSource.createEntityManager());
   }
 
   async save(entity: T): Promise<T> {

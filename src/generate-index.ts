@@ -23,6 +23,7 @@ directories.forEach((directory) => {
 
   const exports = files
     .map((file) => {
+      console.log(file);
       const importPath = `./${file.replace(".ts", "")}`;
       return `export * from '${importPath}';`;
     })

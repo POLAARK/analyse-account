@@ -8,3 +8,20 @@
 2024-05-25T17:56:23.725Z [[31merror[39m]: Error: ENOENT: no such file or directory, scandir '/Users/paul/Documents/Perso/Code/analyse-account/src./discord/' 
 2024-05-25T17:56:43.492Z [[31merror[39m]: Init error :  
 2024-05-25T17:56:43.493Z [[31merror[39m]: Error: Cannot find package 'src' imported from /Users/paul/Documents/Perso/Code/analyse-account/src/app.ts 
+2024-05-25T18:31:24.644Z [[32minfo[39m]: /Users/paul/Documents/Perso/Code/analyse-account/src/discord/Analysewallet.ts 
+2024-05-25T18:31:25.001Z [[32minfo[39m]: Started refreshing 1 application (/) commands. 
+2024-05-25T18:31:25.230Z [[32minfo[39m]: Successfully reloaded 1 application (/) commands. 
+2024-05-25T18:40:45.990Z [[32minfo[39m]: /Users/paul/Documents/Perso/Code/analyse-account/src/discord/Analysewallet.ts 
+2024-05-25T18:40:46.336Z [[32minfo[39m]: Started refreshing 1 application (/) commands. 
+2024-05-25T18:40:46.535Z [[32minfo[39m]: [object Object] 
+2024-05-25T18:40:46.536Z [[32minfo[39m]: Successfully reloaded 1 application (/) commands. 
+2024-05-25T18:41:21.033Z [[32minfo[39m]: /Users/paul/Documents/Perso/Code/analyse-account/src/discord/Analysewallet.ts 
+2024-05-25T18:41:21.393Z [[32minfo[39m]: Started refreshing 1 application (/) commands. 
+2024-05-25T18:41:21.628Z [[32minfo[39m]: [object Object] 
+2024-05-25T18:41:21.629Z [[32minfo[39m]: Successfully reloaded 1 application (/) commands. 
+2024-05-25T18:41:34.242Z [[32minfo[39m]: /Users/paul/Documents/Perso/Code/analyse-account/src/discord/Analysewallet.ts 
+2024-05-25T18:41:34.628Z [[32minfo[39m]: Started refreshing 1 application (/) commands. 
+2024-05-25T18:41:34.827Z [[32minfo[39m]: [object Object] 
+2024-05-25T18:41:34.828Z [[32minfo[39m]: Successfully reloaded 1 application (/) commands. 
+2024-05-25T23:59:20.688Z [[31merror[39m]: ERROR IN builtAccountTransactionHistory 
+2024-05-25T23:59:20.690Z [[31merror[39m]: TypeError: this.walletList is not iterable 
