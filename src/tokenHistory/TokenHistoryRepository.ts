@@ -1,11 +1,11 @@
-import { ERROR_SAVING_ENTITY_IN_DATABASE } from "constants/errors";
-import { CustomError } from "error/customError";
+import { ERROR_SAVING_ENTITY_IN_DATABASE } from "../constants/errors";
+import { CustomError } from "../error/customError";
 import { inject, injectable } from "inversify";
-import { Logger } from "logger/Logger";
-import { TokenHistory } from "tokenHistory/TokenHistory";
+import { Logger } from "../logger/Logger";
+import { TokenHistory } from "../tokenHistory/TokenHistory";
 import { TypeOrmRepository } from "../genericRepository/TypeOrmRepository";
 import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
-import { ITokenHistoryRepository } from "./ITokenHistoryRepository";
+import { type ITokenHistoryRepository } from "./ITokenHistoryRepository";
 
 @injectable()
 export class TokenHistoryRepository
@@ -36,7 +36,7 @@ export class TokenHistoryRepository
         //   // Insert new entity
         //   return await this.repository.save(entity);
         // }
-      } catch (err) {
+      } catch (err: any) {
         if (err.code === "ER_DUP_ENTRY" && attempts < maxRetries) {
           // Retry in case of a duplicate entry error
           this.logger.info(`Duplicate entry detected, retrying... (attempt ${attempts + 1})`);

@@ -1,29 +1,26 @@
 {
   "compilerOptions": {
-    "lib": ["ES2022"],
-    "module": "ES2022",
-    "target": "ES2022",
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "baseUrl": "./src",
-    "moduleResolution": "node",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-    "noImplicitAny": false,
-    "sourceMap": true,
-    "inlineSources": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
+    "noEmit": true,
+    "strict": true,
+    "target": "ESNext",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
     "allowJs": true,
-    "checkJs": true,
-    "experimentalDecorators": true,
+    "jsx": "preserve",
+    "esModuleInterop": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "forceConsistentCasingInFileNames": true,
+    "useUnknownInCatchVariables": true,
+    "noImplicitOverride": true,
     "emitDecoratorMetadata": true,
-    "typeRoots": ["./types", "./node_modules/@types"]
+    "experimentalDecorators": true,
+    "verbatimModuleSyntax": true,
+    "paths": {
+      "test/*": ["test/*"],
+      "~/*": ["src/*"]
+    },
+    "typeRoots": ["src/types", "node_modules/@types"],
+    "baseUrl": "."
   },
-  "tsc-alias": {
-    "resolveFullPaths": true,
-    "verbose": false
-  },
-  "exclude": ["dist", "coverageEnv", "scripts", "node_modules"],
-  "include": ["**/*"]
+  "include": ["src", "test"]
 }

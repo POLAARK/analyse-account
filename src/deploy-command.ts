@@ -1,9 +1,9 @@
-import "reflect-metadata";
 import { REST, Routes } from "discord.js";
 import { config } from "dotenv";
 import fs from "node:fs";
 import path, { dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import "reflect-metadata";
 import { Logger } from "./logger/Logger";
 
 const logger = new Logger();
@@ -12,9 +12,16 @@ config({ path: "src/../.env" });
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
 const guildId = process.env.GUILD_ID;
+if (!clientId) {
+  throw new Error("Please provide CLIENT_ID");
+}
+if (!token) {
+  throw new Error("Please provide DISCORD_TOKEN");
+}
+if (!guildId) {
+  throw new Error("Please provide GUILD_ID");
+}
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 const commands = [];
 // Grab all the command folders from the commands directory you created earlier
 const foldersPath = path.join(__dirname, "./discord");

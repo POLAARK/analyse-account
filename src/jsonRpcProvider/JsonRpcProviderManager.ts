@@ -3,33 +3,36 @@ import {
   ERROR_EXECUTING_RPC_REQUEST,
   INVALID_CONFIG,
   METHOD_DOES_NOT_EXIST,
-} from "constants/errors";
+} from "../constants/errors";
 import { JsonRpcProvider, TransactionReceipt } from "ethers";
-import { CustomError } from "error/customError";
+import { CustomError } from "../error/customError";
 import path from "path";
 import { fileURLToPath } from "url";
 import { ConfigObject } from "../config/Config";
-import { IJsonRpcProviderManager } from "./IJsonRpcProviderManager";
+import type { IJsonRpcProviderManager } from "./IJsonRpcProviderManager";
 import { inject, injectable } from "inversify";
-import SERVICE_IDENTIFIER from "ioc_container/identifiers";
-import { ILogger } from "logger";
+import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
+import type { ILogger } from "../logger";
 
-const filename = fileURLToPath(import.meta.url);
-const dirname = path.dirname(filename);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 @injectable()
 export class JsonRpcProviderManager implements IJsonRpcProviderManager {
   currentProviderIndex: number;
-  configObject = new ConfigObject(path.join(dirname, "../config/configFile.json"));
-  rpcProviders: JsonRpcProvider[] = [];
+  configObject = new ConfigObject(path.join(__dirname, "../config/configFile.json"));
+  rpcProviders: { url: string; provider: JsonRpcProvider; callNumber: number }[] = [];
   constructor(@inject(SERVICE_IDENTIFIER.Logger) private readonly logger: ILogger) {
-    if (!this.configObject.rpcConfigs.urls.length) {
+    if (
+      (this.configObject.rpcConfigs && !this.configObject.rpcConfigs.urls.length) ||
+      !this.configObject.rpcConfigs?.network
+    ) {
       throw new CustomError(INVALID_CONFIG);
     }
     const network = this.configObject.rpcConfigs.network;
     for (const url of this.configObject.rpcConfigs.urls) {
       const provider = new JsonRpcProvider(url, network);
-      this.rpcProviders.push(provider);
+      this.rpcProviders.push({ url, provider, callNumber: 0 });
     }
     this.currentProviderIndex = 0;
   }
@@ -39,13 +42,16 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
     while (attempts < this.rpcProviders.length) {
       try {
         const provider = this.rpcProviders[this.currentProviderIndex];
+        this.logger.info(
+          `Method : ${methodName} called with ${provider.url} for the ${provider.callNumber} time`
+        );
         const result: T = await this.callProviderMethodWithTimeout<T>(
-          provider,
+          provider.provider,
           methodName,
           args,
           timeout
         );
-
+        this.rpcProviders[this.currentProviderIndex].callNumber += 1;
         // We have to make sure we have a result
         if (methodName == "getTransactionReceipt" && !(result as TransactionReceipt).logs) {
           throw new Error("No logs for this receipt, retry");
@@ -91,7 +97,7 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
             resolve(result);
           }
         })
-        .catch((error) => {
+        .catch((error: any) => {
           if (!timeoutTriggered) {
             clearTimeout(timer);
             reject(
@@ -107,6 +113,6 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
   }
 
   getCurrentProvider(): JsonRpcProvider {
-    return this.rpcProviders[this.currentProviderIndex];
+    return this.rpcProviders[this.currentProviderIndex].provider;
   }
 }

@@ -1,12 +1,12 @@
-import { ConfigObject } from "config/Config";
+import { ConfigObject } from "../config/Config";
 import { AttachmentBuilder, CommandInteraction, SlashCommandBuilder } from "discord.js";
-import { IEthOhlcService } from "ethOhlc";
+import type { IEthOhlcService } from "../ethOhlc";
 import * as fs from "fs";
-import { container } from "ioc_container/container";
-import SERVICE_IDENTIFIER from "ioc_container/identifiers";
+import { container } from "../ioc_container/container";
+import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
 import path from "path";
 import { fileURLToPath } from "url";
-import { IWalletRepository, IWalletService } from "wallet";
+import type { IWalletRepository, IWalletService } from "../wallet";
 import { TransactionStreamerService } from "../streamer/TransactionStreamerService";
 const filename = fileURLToPath(import.meta.url);
 const dirname = path.dirname(filename);
@@ -47,7 +47,7 @@ export default {
       configObject.rpcConfigs.tokenAddress,
       configObject.rpcConfigs.poolAddress
     );
-
+    await streamer.setWalletList([walletAddress]);
     await streamer.buildWalletTransactionHistory();
     await walletService.createWalletTradingHistory(walletAddress, timestamp);
 

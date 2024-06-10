@@ -1,6 +1,6 @@
 import { injectable } from "inversify";
 import { TypeOrmRepository } from "../genericRepository/TypeOrmRepository";
-import { ITokenRepository } from "./ITokenRepository";
+import type { ITokenRepository } from "./ITokenRepository";
 import { Token } from "./Token";
 
 @injectable()

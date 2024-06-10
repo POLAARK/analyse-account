@@ -1,4 +1,4 @@
-import { BlockchainTransaction } from "./BlockchainTypes";
+import type { BlockchainTransaction } from "./BlockchainTypes";
 
 export interface IBlockchainScanApiService {
   getNormalTransactions(

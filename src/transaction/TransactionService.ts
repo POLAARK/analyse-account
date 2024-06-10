@@ -1,15 +1,16 @@
 import { ethers, formatEther, Interface, LogDescription, TransactionReceipt } from "ethers";
 import { inject, injectable } from "inversify";
-import SERVICE_IDENTIFIER from "ioc_container/identifiers";
-import { IJsonRpcProviderManager } from "../jsonRpcProvider/IJsonRpcProviderManager";
-import { ILogger } from "../logger/ILogger";
 import { erc20 } from "../abis/erc20";
-import { ITokenRepository } from "../token/ITokenRepository";
-import { ITokenService } from "../token/ITokenService";
+import { CustomError } from "../error/customError";
+import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
+import { type IJsonRpcProviderManager } from "../jsonRpcProvider/IJsonRpcProviderManager";
+import { type ILogger } from "../logger/ILogger";
+import { type ITokenRepository } from "../token/ITokenRepository";
+import { type ITokenService } from "../token/ITokenService";
+import { type ITokenHistoryRepository, TokenHistory } from "../tokenHistory";
+import { type ITransactionRepository, Transaction, type TransferTransaction } from "../transaction";
+import { containsUsdOrEth } from "../utils";
 import { BigIntDivisionForAmount } from "../utils/BingIntDivision";
-import { ITransactionRepository, Transaction, TransferTransaction } from "transaction";
-import { ITokenHistoryRepository, TokenHistory } from "tokenHistory";
-import { containsUsdOrEth } from "utils";
 @injectable()
 export class TransactionService {
   constructor(
@@ -24,14 +25,17 @@ export class TransactionService {
     private readonly tokenHistoryRepository: ITokenHistoryRepository
   ) {}
 
-  determineTransactionType(accountAddress: string, parsedLog: LogDescription): "IN" | "OUT" {
+  determineTransactionType(
+    accountAddress: string,
+    parsedLog: LogDescription
+  ): "IN" | "OUT" | undefined {
     if (parsedLog.args[0].toUpperCase() == accountAddress.toUpperCase()) {
       return "OUT";
     }
     if (parsedLog.args[1].toUpperCase() == accountAddress.toUpperCase()) {
       return "IN";
     }
-    return;
+    return undefined;
   }
 
   addTransferTransactionIfValue(
@@ -48,7 +52,7 @@ export class TransactionService {
         timestamp: parseInt(transaction?.timeStamp.toString()),
         tokenAdress: "0x0",
         from: transactionReceipt.from,
-        to: transactionReceipt.to,
+        to: transactionReceipt.to || "",
         amount: parseFloat(parseFloat(valueEther).toFixed(3)), // Convert ether string to a fixed decimal format
         symbol: "WETH",
         status: "OUT",
@@ -78,6 +82,9 @@ export class TransactionService {
           1000
         );
 
+      if (!transactionReceipt.logs) {
+        throw new CustomError("NO_LOGS", "Transaction Logs : " + transactionReceipt.toString());
+      }
       // If value we assume that the value send is the value traded
       // To keep the same logic we just add a transferTx object
       // it might be wrong, only tests will confirm
@@ -106,7 +113,7 @@ export class TransactionService {
           contractERC20
         );
 
-        const parsedLog: LogDescription = interfaceERC20.parseLog(logCopy);
+        const parsedLog: LogDescription | null = interfaceERC20.parseLog(logCopy);
 
         //Correct TransferObject May be to be saved to DB ?
         if (parsedLog?.name && parsedLog.name === "Transfer") {
@@ -128,7 +135,7 @@ export class TransactionService {
         }
       }
       return this.aggregateTransferTransactions(transferTransactionSummary);
-    } catch (e) {
+    } catch (e: any) {
       if (e.code == "BUFFER_OVERRUN") {
         return [];
       } else {
@@ -146,7 +153,7 @@ export class TransactionService {
   aggregateTransferTransactions(
     transferTransactionSummary: TransferTransaction[]
   ): TransferTransaction[] {
-    let aggregatedTransactions = {};
+    let aggregatedTransactions: any = {};
     transferTransactionSummary.forEach((tx) => {
       let key1 = `${tx.tokenAdress}-${tx.from}-${tx.status}`;
       let key2 = `${tx.tokenAdress}-${tx.from}-${tx.to}`;
@@ -175,7 +182,7 @@ export class TransactionService {
     tokenPath: "IN" | "OUT" | undefined;
   }> {
     let fallbackTransfer: TransferTransaction | null = null;
-    let tokenHistory: TokenHistory | undefined;
+    let tokenHistory: TokenHistory | null = null;
     let tokenPath: "IN" | "OUT" | undefined;
     for (const transferTx of transferTxSummary) {
       // Skip transactions that are either incomplete (can't define if they are in or out the current wallet) or do not involve USD or ETH.
@@ -222,14 +229,16 @@ export class TransactionService {
       tokenHistory.numberOfTx = 0;
       tokenHistory.lastTxBlock = transferTxSummary[0].blockNumber;
       tokenHistory.performanceUSD = 0;
-      tokenHistory.pair = null;
+      tokenHistory.pair = "";
       tokenPath = fallbackTransfer.status;
       let index = transferTxSummary.indexOf(fallbackTransfer);
       if (index > -1) {
         transferTxSummary.splice(index, 1);
       }
     }
-
+    if (!tokenHistory) {
+      throw new CustomError("Can't creat token history");
+    }
     return { updatedTransferTransactionSummary: transferTxSummary, tokenHistory, tokenPath };
   }
 

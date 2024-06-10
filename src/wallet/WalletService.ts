@@ -1,12 +1,12 @@
 import { inject, injectable } from "inversify";
-import SERVICE_IDENTIFIER from "ioc_container/identifiers";
-import { ILogger } from "logger";
-import { ITokenHistoryRepository, ITokenHistoryService } from "tokenHistory";
-import { ITransactionRepository, ITransactionService } from "transaction";
-import { IWalletRepository } from "./IWalletRepository";
+import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
+import { type ILogger } from "../logger";
+import { type ITokenHistoryRepository, type ITokenHistoryService } from "../tokenHistory";
+import { type ITransactionRepository, type ITransactionService } from "../transaction";
+import { type IWalletRepository } from "./IWalletRepository";
 import { Wallet } from "./Wallet";
-import { IWalletService } from "./IWalletService";
-import { CustomError } from "error/customError";
+import { type IWalletService } from "./IWalletService";
+import { CustomError } from "../error/customError";
 
 @injectable()
 export class WalletService implements IWalletService {

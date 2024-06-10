@@ -10,3 +10,5 @@ downloadEthPrice/config.txt
 data/total_ohlc_ETH.json
 src/modules/config/configFile.json
 src/ormconfig.ts
+logs/*
+logs/app.log

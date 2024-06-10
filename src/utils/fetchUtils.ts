@@ -1,5 +1,5 @@
 import fs from "fs";
-import { ILogger } from "logger";
+import { type ILogger } from "../logger";
 import fetch from "node-fetch";
 import puppeteer, { Page } from "puppeteer";
 

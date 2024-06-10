@@ -1,4 +1,4 @@
-import { TransferTransaction } from "transaction";
+import { type TransferTransaction } from "../transaction";
 
 export interface ITokenHistoryService {
   updateWalletTokenHistory(

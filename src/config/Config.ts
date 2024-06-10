@@ -1,9 +1,9 @@
-import { Config, RpcConfig } from "../types/config";
+import type { Config, RpcConfig } from "../types/config";
 import fs from "fs";
 import path from "path";
 
 export class ConfigObject {
-  public rpcConfigs: RpcConfig;
+  public rpcConfigs: RpcConfig | undefined;
 
   constructor(configFilePath: string) {
     this.createConfig(configFilePath);

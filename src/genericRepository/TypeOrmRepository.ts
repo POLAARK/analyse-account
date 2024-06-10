@@ -1,12 +1,19 @@
 import { injectable, unmanaged } from "inversify";
-import { container } from "ioc_container/container";
-import SERVICE_IDENTIFIER from "ioc_container/identifiers";
-import { DataSource, FindManyOptions, FindOptionsWhere, Repository } from "typeorm";
-import { EntityTarget } from "typeorm/common/EntityTarget";
-import { IGenericRepository } from "./IGenericRepository";
+import { container } from "../ioc_container/container";
+import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
+import {
+  DataSource,
+  type EntityTarget,
+  type FindManyOptions,
+  type FindOptionsWhere,
+  type ObjectLiteral,
+  Repository,
+} from "typeorm";
+import { type IGenericRepository } from "./IGenericRepository";
+import { CustomError } from "~/error/customError";
 
 @injectable()
-export class TypeOrmRepository<T> implements IGenericRepository<T> {
+export class TypeOrmRepository<T extends ObjectLiteral> implements IGenericRepository<T> {
   repository: Repository<T>;
   dataSource = container.get<DataSource>(SERVICE_IDENTIFIER.DataSource);
   constructor(@unmanaged() target: EntityTarget<T>) {
@@ -18,7 +25,12 @@ export class TypeOrmRepository<T> implements IGenericRepository<T> {
   }
 
   async findOneBy(whereOptions: FindOptionsWhere<T> | FindOptionsWhere<T>[]): Promise<T> {
-    return await this.repository.findOneBy(whereOptions);
+    const res = await this.repository.findOneBy(whereOptions);
+    const entityClass = (this.repository.target as any).entityName;
+    if (!res) {
+      throw new CustomError(`Can't find requested entity ${entityClass}`);
+    }
+    return res;
   }
 
   async findAll(): Promise<T[]> {

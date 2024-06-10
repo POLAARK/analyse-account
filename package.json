@@ -5,9 +5,9 @@
   "type": "module",
   "main": "src/app.ts",
   "scripts": {
-    "start": "tsx src/app.ts",
-    "build": "tsc && tsc-alias",
-    "build:watch": "tsc && (concurrently \"tsc -w\" \"tsc-alias -w\")",
+    "build": "tsc",
+    "start": "node dist/app.js",
+    "dev": "nodemon --watch src --ext ts,tsx --exec tsx src/app.ts",
     "test": "tsx ./src/test.ts",
     "deploy": "tsx ./src/deploy-command.ts"
   },
@@ -17,9 +17,10 @@
   "devDependencies": {
     "@types/node": "^18.19.26",
     "@types/stream-json": "^1.7.7",
+    "nodemon": "^3.1.3",
     "ts-node": "^10.9.2",
     "tsc-alias": "^1.8.8",
-    "typescript": "^5.4.3"
+    "typescript": "^5.4.5"
   },
   "dependencies": {
     "@swc/core": "^1.4.8",

@@ -1,4 +1,4 @@
-import { Networkish } from "ethers";
+import type { Networkish } from "ethers";
 
 export type Config = {
   rpcConfigs: RpcConfig;

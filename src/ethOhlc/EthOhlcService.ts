@@ -1,13 +1,13 @@
-import { appDataSource } from "app.js";
-import { ERROR_FETCHING_DATA, ERROR_SAVING_ENTITY_IN_DATABASE } from "constants/errors";
-import { CustomError } from "error/customError";
-import { IEthOhlcRepository } from "ethOhlc";
+import { appDataSource } from "../app.js";
+import { ERROR_FETCHING_DATA, ERROR_SAVING_ENTITY_IN_DATABASE } from "../constants/errors";
+import { CustomError } from "../error/customError";
+import { type IEthOhlcRepository } from "../ethOhlc";
 import { inject, injectable } from "inversify";
-import SERVICE_IDENTIFIER from "ioc_container/identifiers";
-import { ILogger } from "logger";
+import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
+import { type ILogger } from "../logger";
 import { EthOhlc } from ".";
-import { IEthOhlcService } from "./IEthOhlcService";
-import { PerformanceMeasurer } from "performance/PerformanceMeasurer";
+import { type IEthOhlcService } from "./IEthOhlcService";
+import { PerformanceMeasurer } from "../performance/PerformanceMeasurer";
 
 const MAX_RECORDS_PER_REQUEST = 2500; // Assuming this is your limit
 const SECONDS_PER_MINUTE = 60; // 60 seconds in a minute
@@ -40,7 +40,6 @@ export class EthOhlService implements IEthOhlcService {
     endTimestamp?: number
   ): Promise<void> {
     const syveKey = process.env.SYVE_API_KEY;
-    console.log("Here");
 
     let current_start = startTimestamp
       ? startTimestamp
@@ -82,7 +81,7 @@ export class EthOhlService implements IEthOhlcService {
           ethohlc.priceLow = arrElem.price_low;
           ethohlc.priceClose = arrElem.price_close;
           await this.ethOhlcRepository.save(ethohlc);
-        } catch (error) {
+        } catch (error: any) {
           if (error.code === "ER_DUP_ENTRY") {
             alreadySaved = true;
             break;
@@ -101,8 +100,6 @@ export class EthOhlService implements IEthOhlcService {
 
       await new Promise((resolve) => setTimeout(resolve, 1000));
     }
-    console.log("end saved data");
-    console.log(current_start);
     return;
   }
 

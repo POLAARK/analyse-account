@@ -1,17 +1,17 @@
-import "reflect-metadata";
 import { Client, Collection, Events, GatewayIntentBits, TextChannel } from "discord.js";
 import dotenv from "dotenv";
 import * as fs from "fs";
-import { Logger } from "./logger";
-import { ormConfig } from "ormconfig";
-import path, { dirname } from "path";
+import path from "path";
 import "reflect-metadata";
+import { ormConfig } from "./ormconfig";
+
 import { DataSource } from "typeorm";
-import { MysqlConnectionOptions } from "typeorm/driver/mysql/MysqlConnectionOptions";
+import { Logger } from "./logger";
+import type { MysqlConnectionOptions } from "typeorm/driver/mysql/MysqlConnectionOptions.js";
 import { fileURLToPath } from "url";
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const __dirname = path.dirname(__filename);
 dotenv.config({ path: __dirname + "/../.env" });
 
 const logger = new Logger();
@@ -19,7 +19,6 @@ export const appDataSource = new DataSource({
   logging: true,
   ...(ormConfig as MysqlConnectionOptions),
 });
-
 appDataSource
   .initialize()
   .then(async () => {
@@ -28,7 +27,7 @@ appDataSource
       logger.error(error);
     });
 
-    const token: string = process.env.DISCORD_TOKEN;
+    const token: string | undefined = process.env.DISCORD_TOKEN;
     if (!token) {
       logger.error("No discord Token for the app");
       throw new Error("No discord token provided ");
@@ -51,7 +50,8 @@ appDataSource
 
     for (const file of commandFiles) {
       const filePath = path.join(commandsPath, file);
-      const command = (await import(`discord/${file}`))?.default;
+      const { default: command } = await import(`./discord/${file}`);
+
       // Set a new item in the Collection with the key as the command name and the value as the exported module
       if ("data" in command && "execute" in command) {
         client.commands.set(command.data.name, command);
@@ -66,7 +66,7 @@ appDataSource
       (channel as TextChannel).send("Connected");
     });
 
-    client.on(Events.InteractionCreate, async (interaction) => {
+    client.on(Events.InteractionCreate, async (interaction: any) => {
       if (!interaction.isChatInputCommand()) {
         logger.info(interaction);
         return;
@@ -99,6 +99,14 @@ appDataSource
     client.login(token);
   })
   .catch((error) => {
-    logger.error("Init error : ");
-    logger.error(error);
+    logger.error("Init error");
+    console.log(error);
+    if (error instanceof AggregateError) {
+      logger.error("AggregateError detected. Details:");
+      error.errors.forEach((err, index) => {
+        logger.error(`Error ${index + 1}:`, err);
+      });
+    } else {
+      logger.error(error);
+    }
   });

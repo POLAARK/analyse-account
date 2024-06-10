@@ -1,22 +1,22 @@
-import { IBlockchainScanApiService } from "blockchainProvider";
-import { ERROR_SAVING_ENTITY_IN_DATABASE } from "constants/errors";
+import { type IBlockchainScanApiService } from "../blockchainProvider";
+import { ERROR_SAVING_ENTITY_IN_DATABASE } from "../constants/errors";
 import { config } from "dotenv";
-import { CustomError } from "error/customError";
+import { CustomError } from "../error/customError";
 import { inject, injectable } from "inversify";
-import SERVICE_IDENTIFIER from "ioc_container/identifiers";
-import { IJsonRpcProviderManager } from "jsonRpcProvider";
-import { ILogger } from "logger";
-import { Transaction } from "transaction/Transaction";
-import { Wallet } from "wallet/Wallet";
-import { BlockchainTransaction } from "../blockchainProvider/BlockchainTypes";
+import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
+import { type IJsonRpcProviderManager } from "../jsonRpcProvider";
+import { type ILogger } from "../logger";
+import { Transaction } from "../transaction/Transaction";
+import { Wallet } from "../wallet/Wallet";
+import { type BlockchainTransaction } from "../blockchainProvider/BlockchainTypes";
 import { TokenHistoryService } from "../tokenHistory/TokenHistoryService";
-import { IWalletRepository } from "wallet";
-import { ITransactionRepository } from "transaction";
+import { type IWalletRepository } from "../wallet";
+import { type ITransactionRepository } from "../transaction";
 
 config({ path: "src/../.env" });
 @injectable()
 export class TransactionStreamerService {
-  walletList: Set<string>;
+  walletList: Set<string> | undefined;
   constructor(
     @inject(SERVICE_IDENTIFIER.EtherscanApiService)
     private readonly etherscanApiService: IBlockchainScanApiService,
@@ -51,6 +51,7 @@ export class TransactionStreamerService {
   }
 
   async buildWalletTransactionHistory(lastBlock?: number, startBlock: number = 0) {
+    if (!this.walletList) throw new CustomError("Init wallet list before usage");
     try {
       // TODO, we should get lastBlock by transaction
       const latest = lastBlock
@@ -61,7 +62,10 @@ export class TransactionStreamerService {
         // Check if the file exists and read the last updated block
         let wallet = new Wallet();
         try {
-          wallet = await this.walletRepository.findOneBy({ address: walletAddress });
+          const res = await this.walletRepository.findOneBy({ address: walletAddress });
+          if (res) {
+            wallet = res;
+          }
         } catch (err) {
           console.log("builtAccountTransactionHistory");
           console.log(err);
@@ -78,7 +82,7 @@ export class TransactionStreamerService {
             numberOfTxs: 0,
             lastAnalysisTimestamp: 0,
             startAnalysisTimestamp: 0,
-          } as Wallet);
+          } as unknown as Wallet);
           constStartBlock = startBlock;
         }
 
@@ -95,7 +99,7 @@ export class TransactionStreamerService {
         await this.saveHistoryToDB(history, wallet);
       }
     } catch (error) {
-      this.logger.error("ERROR IN builtAccountTransactionHistory");
+      this.logger.error("Error in builtAccountTransactionHistory");
       this.logger.error(error);
       throw error;
     }
@@ -133,6 +137,7 @@ export class TransactionStreamerService {
   }
 
   addWallets(walletList: string[]) {
+    if (!this.walletList) throw new CustomError("Init wallet list before usage");
     for (let walletAddress of walletList) {
       if (this.walletList.has(walletAddress)) {
         throw new Error(

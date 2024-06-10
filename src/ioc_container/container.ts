@@ -1,22 +1,32 @@
-import { EtherscanApiService, IBlockchainScanApiService } from "blockchainProvider";
+import { EtherscanApiService, type IBlockchainScanApiService } from "../blockchainProvider";
 import { Container } from "inversify";
-import { TransactionStreamerService } from "streamer/TransactionStreamerService";
+import { TransactionStreamerService } from "../streamer/TransactionStreamerService";
 import { DataSource } from "typeorm";
-import { IWalletRepository, IWalletService, WalletRepository, WalletService } from "wallet";
-import { appDataSource } from "../app";
-import { EthOhlcRepository, EthOhlService, IEthOhlcRepository, IEthOhlcService } from "../ethOhlc";
-import { IJsonRpcProviderManager, JsonRpcProviderManager } from "../jsonRpcProvider";
-import { ILogger, Logger } from "../logger";
-import { ITokenRepository, ITokenService, TokenRepository, TokenService } from "../token";
 import {
-  ITokenHistoryRepository,
-  ITokenHistoryService,
+  type IWalletRepository,
+  type IWalletService,
+  WalletRepository,
+  WalletService,
+} from "../wallet";
+import { appDataSource } from "../app";
+import {
+  EthOhlcRepository,
+  EthOhlService,
+  type IEthOhlcRepository,
+  type IEthOhlcService,
+} from "../ethOhlc";
+import { type IJsonRpcProviderManager, JsonRpcProviderManager } from "../jsonRpcProvider";
+import { type ILogger, Logger } from "../logger";
+import { type ITokenRepository, type ITokenService, TokenRepository, TokenService } from "../token";
+import {
+  type ITokenHistoryRepository,
+  type ITokenHistoryService,
   TokenHistoryRepository,
   TokenHistoryService,
 } from "../tokenHistory";
 import {
-  ITransactionRepository,
-  ITransactionService,
+  type ITransactionRepository,
+  type ITransactionService,
   TransactionRepository,
   TransactionService,
 } from "../transaction";

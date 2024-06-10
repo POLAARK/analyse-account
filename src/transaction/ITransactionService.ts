@@ -1,10 +1,13 @@
 import { LogDescription, TransactionReceipt } from "ethers";
 import { Transaction } from "./Transaction";
-import { TransferTransaction } from "./transaction.entity";
-import { TokenHistory } from "tokenHistory";
+import { type TransferTransaction } from "./transaction.entity";
+import { TokenHistory } from "../tokenHistory";
 
 export interface ITransactionService {
-  determineTransactionType(accountAddress: string, parsedLog: LogDescription): "IN" | "OUT";
+  determineTransactionType(
+    accountAddress: string,
+    parsedLog: LogDescription
+  ): "IN" | "OUT" | undefined;
   addTransferTransactionIfValue(
     transaction: Transaction,
     transferTransactionSummary: TransferTransaction[],

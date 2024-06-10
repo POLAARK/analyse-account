@@ -1,7 +1,7 @@
 import { injectable } from "inversify";
 import { MoreThan } from "typeorm";
 import { TypeOrmRepository } from "../genericRepository/TypeOrmRepository";
-import { ITransactionRepository } from "./ITransactionRepository";
+import type { ITransactionRepository } from "./ITransactionRepository";
 import { Transaction } from "./Transaction";
 
 @injectable()

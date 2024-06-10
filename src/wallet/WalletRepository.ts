@@ -1,6 +1,6 @@
 import { injectable } from "inversify";
 import { TypeOrmRepository } from "../genericRepository/TypeOrmRepository";
-import { IWalletRepository } from "./IWalletRepository";
+import type { IWalletRepository } from "./IWalletRepository";
 import { Wallet } from "./Wallet";
 
 @injectable()

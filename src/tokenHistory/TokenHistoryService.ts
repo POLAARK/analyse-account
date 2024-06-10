@@ -1,15 +1,15 @@
 import { config } from "dotenv";
-import { IEthOhlcService } from "ethOhlc";
 import { inject, injectable } from "inversify";
-import SERVICE_IDENTIFIER from "ioc_container/identifiers";
-import { ILogger } from "logger";
-import { ITokenHistoryRepository } from "tokenHistory/ITokenHistoryRepository";
-import { TokenHistory } from "tokenHistory/TokenHistory";
-import { ITransactionRepository, TransferTransaction } from "transaction";
-import { ITransactionService } from "transaction/ITransactionService";
-import { IWalletRepository } from "wallet";
+import { type IEthOhlcService } from "../ethOhlc";
+import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
+import { type ILogger } from "../logger";
+import { type ITokenHistoryRepository } from "../tokenHistory/ITokenHistoryRepository";
+import { TokenHistory } from "../tokenHistory/TokenHistory";
+import { type TransferTransaction } from "../transaction";
+import { type ITransactionService } from "../transaction/ITransactionService";
+
 import { OneContainsStrings } from "../utils/stringUtils";
-import { ITokenHistoryService } from "./ITokenHistoryService";
+import { type ITokenHistoryService } from "./ITokenHistoryService";
 
 config({ path: "src/../.env" });
 
@@ -104,7 +104,7 @@ export class TokenHistoryService implements ITokenHistoryService {
           : OneContainsStrings(transfer.symbol, ["eth"])
           ? "ETH"
           : null;
-        tokenHistory.pair = pairType;
+        pairType ? (tokenHistory.pair = pairType) : "";
 
         if (pairType === "ETH") {
           await this.updateTokenHistoryForEthPair(transfer, tokenHistory);

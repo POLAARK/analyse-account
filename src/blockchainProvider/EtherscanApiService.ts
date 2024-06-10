@@ -1,10 +1,9 @@
 import { inject, injectable } from "inversify";
-import { BlockchainTransaction } from "./BlockchainTypes";
+import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
+import { type ILogger } from "../logger/ILogger";
 import { fetchHttpJson } from "../utils/fetchUtils";
-import SERVICE_IDENTIFIER from "ioc_container/identifiers";
-import { ILogger } from "../logger/ILogger";
-import { IBlockchainScanApiService } from "./IBlockchainScanApiService";
-import dotenv from "dotenv";
+import { type BlockchainTransaction } from "./BlockchainTypes";
+import { type IBlockchainScanApiService } from "./IBlockchainScanApiService";
 @injectable()
 export class EtherscanApiService implements IBlockchainScanApiService {
   #RETRY_COUNT: number = 3;
@@ -34,7 +33,7 @@ export class EtherscanApiService implements IBlockchainScanApiService {
     let response: any;
     try {
       response = await fetchHttpJson(this.#endpoint + parameters, {}, this.logger);
-    } catch (error) {
+    } catch (error: any) {
       if (error.statusCode === 429 || error.message.includes("rate limit")) {
         this.logger.error("Rate limit reached, retrying in 15 minutes...");
         await new Promise((resolve) => setTimeout(resolve, 900000));
@@ -80,7 +79,7 @@ export class EtherscanApiService implements IBlockchainScanApiService {
     let response: any;
     try {
       response = await fetchHttpJson(this.#endpoint + parameters, {}, this.logger);
-    } catch (error) {
+    } catch (error: any) {
       if (error.statusCode === 429 || error.message.includes("rate limit")) {
         this.logger.error("Rate limit reached, retrying in 15 minutes...");
         await new Promise((resolve) => setTimeout(resolve, 900000));
@@ -128,8 +127,8 @@ export class EtherscanApiService implements IBlockchainScanApiService {
     ].sort((a, b) => a.timeStamp - b.timeStamp);
 
     const uniqueTransactions: BlockchainTransaction[] = accountTransactionHistory.reduce(
-      (acc, transaction) => {
-        if (!acc.some((t) => t.hash === transaction.hash)) {
+      (acc: BlockchainTransaction[], transaction) => {
+        if (!acc.some((t: any) => t.hash === transaction.hash)) {
           acc.push(transaction);
         }
         return acc;

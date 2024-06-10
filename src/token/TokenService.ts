@@ -1,9 +1,9 @@
 // services/TokenService.ts
 import { inject, injectable } from "inversify";
-import { ITokenRepository } from "./ITokenRepository";
-import { ITokenService } from "./ITokenService";
-import { Token } from "./Token";
-import { ILogger } from "../logger/ILogger";
+import type { ITokenRepository } from "./ITokenRepository";
+import type { ITokenService } from "./ITokenService";
+import type { Token } from "./Token";
+import type { ILogger } from "../logger/ILogger";
 import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
 import { Contract } from "ethers";
 
