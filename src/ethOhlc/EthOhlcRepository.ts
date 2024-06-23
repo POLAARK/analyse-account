@@ -23,6 +23,7 @@ export class EthOhlcRepository extends TypeOrmRepository<EthOhlc> implements IEt
       .setParameter("inputTimestamp", inputTimestamp)
       .getOne();
     if (!closestRecord) throw new CustomError("Can't find closest record on DB");
+
     return closestRecord;
   }
   async findLastRecordTimestamp(): Promise<number> {

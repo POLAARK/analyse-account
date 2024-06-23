@@ -24,12 +24,12 @@ export class TypeOrmRepository<T extends ObjectLiteral> implements IGenericRepos
     return await this.repository.save<T>(entity);
   }
 
-  async findOneBy(whereOptions: FindOptionsWhere<T> | FindOptionsWhere<T>[]): Promise<T> {
+  async findOneBy(whereOptions: FindOptionsWhere<T> | FindOptionsWhere<T>[]): Promise<T | null> {
     const res = await this.repository.findOneBy(whereOptions);
-    const entityClass = (this.repository.target as any).entityName;
-    if (!res) {
-      throw new CustomError(`Can't find requested entity ${entityClass}`);
-    }
+    // const entityClass = (this.repository.target as any).entityName;
+    // if (!res) {
+    //   throw new CustomError(`Can't find requested entity ${entityClass}`);
+    // }
     return res;
   }
 

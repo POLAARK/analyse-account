@@ -8,7 +8,7 @@ export class TokenRepository extends TypeOrmRepository<Token> implements ITokenR
   constructor() {
     super(Token);
   }
-  async findOneByAddress(address: string): Promise<Token> {
+  async findOneByAddress(address: string): Promise<Token | null> {
     return await this.findOneBy({ address: address });
   }
 }

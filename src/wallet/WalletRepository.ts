@@ -8,7 +8,7 @@ export class WalletRepository extends TypeOrmRepository<Wallet> implements IWall
   constructor() {
     super(Wallet);
   }
-  async findOneByAddress(address: string): Promise<Wallet> {
+  async findOneByAddress(address: string): Promise<Wallet | null> {
     return await this.findOneBy({ address: address });
   }
 }

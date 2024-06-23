@@ -32,9 +32,13 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
     const network = this.configObject.rpcConfigs.network;
     for (const url of this.configObject.rpcConfigs.urls) {
       const provider = new JsonRpcProvider(url, network);
-      this.rpcProviders.push({ url, provider, callNumber: 0 });
+      provider._start();
+      this.rpcProviders.push({
+        url,
+        provider: provider,
+        callNumber: 0,
+      });
     }
-    this.logger.info(this.rpcProviders);
     this.currentProviderIndex = 0;
   }
 
@@ -59,13 +63,14 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
         }
         return result;
       } catch (error) {
-        if (error == `timeout occured for ${methodName}`) {
+        if (error == `timeout occurred for ${methodName}`) {
           this.logger.error("TIMEOUT ERROR RETRY");
         } else {
           this.logger.error(error);
         }
         this.currentProviderIndex = (this.currentProviderIndex + 1) % this.rpcProviders.length;
         attempts++;
+        await this.delay(100);
       }
     }
     throw new CustomError(ALL_PROVIDERS_FAILED, `All providers failed for method ${methodName}.`);
@@ -81,7 +86,7 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
       let timeoutTriggered = false;
       const timer = setTimeout(() => {
         timeoutTriggered = true;
-        reject(`timeout occured for ${methodName}`);
+        reject(`timeout occurred for ${methodName}`);
       }, timeout);
 
       const method = provider[methodName as keyof JsonRpcProvider] as Function;
@@ -102,13 +107,8 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
         .catch((error: any) => {
           if (!timeoutTriggered) {
             clearTimeout(timer);
-            reject(
-              new CustomError(
-                ERROR_EXECUTING_RPC_REQUEST,
-                `${methodName} on provider ${JSON.stringify(provider._getConnection())}`,
-                error
-              )
-            );
+            console.log(error);
+            reject(new CustomError(ERROR_EXECUTING_RPC_REQUEST, `${methodName}`, error));
           }
         });
     });
@@ -116,5 +116,9 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
 
   getCurrentProvider(): JsonRpcProvider {
     return this.rpcProviders[this.currentProviderIndex].provider;
+  }
+
+  private delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 }

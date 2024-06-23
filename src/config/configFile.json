@@ -2,8 +2,8 @@
   "rpcConfigs": {
     "network": "mainnet",
     "urls": [
-      "https://eth.llamarpc.com",
       "https://www.noderpc.xyz/rpc-mainnet/public",
+      "https://eth.llamarpc.com",
       "https://eth-pokt.nodies.app",
       "https://rpc.mevblocker.io/fullprivacy",
       "https://virginia.rpc.blxrbdn.com",

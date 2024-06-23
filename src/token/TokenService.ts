@@ -19,7 +19,7 @@ export class TokenService implements ITokenService {
     contractERC20: Contract
   ): Promise<{ tokenSymbol: string; tokenDecimals: bigint }> {
     try {
-      let token: Token | undefined = await this.tokenRepository.findOneByAddress(address);
+      let token: Token | null = await this.tokenRepository.findOneByAddress(address);
 
       if (token) {
         return {
@@ -48,7 +48,7 @@ export class TokenService implements ITokenService {
       if (err.code === "CALL_EXCEPTION") {
         this.logger.warn(`Call exception for token at address ${address}`);
       } else {
-        this.logger.error(`Error fetching token details for address ${address}: ${err.message}`);
+        this.logger.error(`Error fetching token details for address ${address}: ${err}`);
       }
 
       // Return default values in case of an error

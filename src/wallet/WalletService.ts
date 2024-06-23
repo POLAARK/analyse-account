@@ -58,6 +58,9 @@ export class WalletService implements IWalletService {
       await Promise.all(transactionPromises);
 
       const wallet = await this.walletRepository.findOneByAddress(address);
+      if (!wallet) {
+        throw new CustomError("NO WALLET FOUND");
+      }
       await this.updateWalletTimestamps(timestamp, wallet);
       await this.updateWalletSummary(wallet);
       await this.walletRepository.save(wallet);
@@ -69,7 +72,7 @@ export class WalletService implements IWalletService {
     }
   }
 
-  async updateWalletTimestamps(timestamp: number, wallet: Wallet) {
+  async updateWalletTimestamps(timestamp: number, wallet: Wallet): Promise<void> {
     if (wallet) {
       if (!wallet.startAnalysisTimestamp || wallet.startAnalysisTimestamp < timestamp) {
         wallet.startAnalysisTimestamp = timestamp;
@@ -81,7 +84,7 @@ export class WalletService implements IWalletService {
   }
 
   //TODOPB : To be modified
-  async updateWalletSummary(wallet: Wallet) {
+  async updateWalletSummary(wallet: Wallet): Promise<void> {
     try {
       const tokenHistories = await this.tokenHistoryRepository.findAllByAddress(wallet.address);
       wallet.numberOfTokensTraded = tokenHistories.length;
