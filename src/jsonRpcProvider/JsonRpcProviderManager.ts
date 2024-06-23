@@ -34,6 +34,7 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
       const provider = new JsonRpcProvider(url, network);
       this.rpcProviders.push({ url, provider, callNumber: 0 });
     }
+    this.logger.info(this.rpcProviders);
     this.currentProviderIndex = 0;
   }
 
@@ -45,13 +46,13 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
         this.logger.info(
           `Method : ${methodName} called with ${provider.url} for the ${provider.callNumber} time`
         );
+        this.rpcProviders[this.currentProviderIndex].callNumber += 1;
         const result: T = await this.callProviderMethodWithTimeout<T>(
           provider.provider,
           methodName,
           args,
           timeout
         );
-        this.rpcProviders[this.currentProviderIndex].callNumber += 1;
         // We have to make sure we have a result
         if (methodName == "getTransactionReceipt" && !(result as TransactionReceipt).logs) {
           throw new Error("No logs for this receipt, retry");
@@ -59,6 +60,7 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
         return result;
       } catch (error) {
         if (error == `timeout occured for ${methodName}`) {
+          this.logger.error("TIMEOUT ERROR RETRY");
         } else {
           this.logger.error(error);
         }

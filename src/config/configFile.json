@@ -3,7 +3,7 @@
     "network": "mainnet",
     "urls": [
       "https://eth.llamarpc.com",
-      "https://rpc.mevblocker.io",
+      "https://www.noderpc.xyz/rpc-mainnet/public",
       "https://eth-pokt.nodies.app",
       "https://rpc.mevblocker.io/fullprivacy",
       "https://virginia.rpc.blxrbdn.com",
@@ -11,7 +11,7 @@
       "https://1rpc.io/eth",
       "https://singapore.rpc.blxrbdn.com",
       "https://eth.rpc.blxrbdn.com",
-      "https://api.zmok.io/mainnet/oaen6dy8ff6hju9k"
+      "https://sepolia.infura.io/v3/ec726f38ec8c41da8a96583be90e76ed"
     ],
     "tokenAddress": "0xae7ab96520de3a18e5e111b5eaab095312d7fe84",
     "poolAddress": "0x4028daac072e492d34a3afdbef0ba7e35d8b55c4"
