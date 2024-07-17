@@ -4,35 +4,35 @@ import { Wallet } from "../wallet/Wallet";
 @Entity()
 export class Transaction {
   @PrimaryColumn({ type: "varchar", length: 255, nullable: false })
-  hash: string;
+  hash!: string;
 
   @Index()
   @ManyToOne(() => Wallet, (wallet) => wallet.transactions)
-  wallet: Wallet;
+  wallet!: Wallet;
 
   @Column("bigint")
-  blockNumber: number;
+  blockNumber!: number;
 
   @Column("bigint")
-  timeStamp: number;
+  timeStamp!: number;
 
   @Index()
   @Column({ type: "varchar", length: 50, nullable: true })
-  fromAddress: string;
+  fromAddress!: string;
 
   @Index()
   @Column({ type: "varchar", length: 50, nullable: true })
-  toAddress: string;
+  toAddress!: string;
 
   @Column({ type: "varchar", length: 50, nullable: true })
-  value: string;
+  value!: string;
 
   @Column("bigint")
-  gas: number;
+  gas!: number;
 
   @Column({ type: "text", nullable: true })
-  input: string;
+  input!: string;
 
   @Column({ type: "varchar", length: 255, nullable: true })
-  contractAddress: string;
+  contractAddress!: string;
 }

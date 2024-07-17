@@ -5,29 +5,29 @@ import { TokenHistory } from "../tokenHistory/TokenHistory";
 @Entity()
 export class Wallet {
   @PrimaryColumn({ type: "varchar", length: 50 })
-  address: string;
+  address!: string;
 
   @Column({ type: "bigint" })
-  lastBlockUpdated: number;
+  lastBlockUpdated!: number;
 
   @OneToMany(() => Transaction, (transaction) => transaction.wallet)
-  transactions: Transaction[];
+  transactions!: Transaction[];
 
   @OneToMany(() => TokenHistory, (tokenHistory) => tokenHistory.wallet)
-  tokenHistories: TokenHistory[];
+  tokenHistories!: TokenHistory[];
 
   @Column({ type: "float" })
-  numberOfTokensTraded: number;
+  numberOfTokensTraded!: number;
 
   @Column({ type: "float" })
-  performanceUSD: number;
+  performanceUSD!: number;
 
   @Column({ type: "int" })
-  numberOfTxs: number;
+  numberOfTxs!: number;
 
   @Column({ type: "bigint" })
-  lastAnalysisTimestamp: number;
+  lastAnalysisTimestamp!: number;
 
   @Column({ type: "bigint" })
-  startAnalysisTimestamp: number;
+  startAnalysisTimestamp!: number;
 }

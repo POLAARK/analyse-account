@@ -1,9 +1,9 @@
 import "reflect-metadata";
-import { appDataSource } from "app.js";
-import { TransactionReceipt } from "ethers";
-import { container } from "ioc_container/container.js";
-import SERVICE_IDENTIFIER from "ioc_container/identifiers.js";
-import { JsonRpcProviderManager } from "jsonRpcProvider/JsonRpcProviderManager.js";
+import type { TransactionReceipt } from "ethers";
+import { appDataSource } from "./app";
+import { container } from "./ioc_container/container";
+import SERVICE_IDENTIFIER from "./ioc_container/identifiers";
+import type { JsonRpcProviderManager } from "./jsonRpcProvider";
 
 appDataSource.initialize().then(async () => {
   await appDataSource.synchronize().catch((error) => {});

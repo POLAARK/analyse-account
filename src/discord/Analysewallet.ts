@@ -42,7 +42,9 @@ export default {
     await interaction.reply("Analyse started");
 
     const configObject = new ConfigObject(path.join(dirname, "../config/configFile.json"));
-
+    if (!configObject.rpcConfigs) {
+      throw new Error("Invalid config: rpcConfigs is required");
+    }
     await ethOhlcService.getEthOhlc(
       configObject.rpcConfigs.tokenAddress,
       configObject.rpcConfigs.poolAddress

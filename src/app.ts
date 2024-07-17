@@ -4,7 +4,6 @@ import * as fs from "fs";
 import path from "path";
 import "reflect-metadata";
 import { ormConfig } from "./ormconfig";
-
 import { DataSource } from "typeorm";
 import { Logger } from "./logger";
 import type { MysqlConnectionOptions } from "typeorm/driver/mysql/MysqlConnectionOptions.js";

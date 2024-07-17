@@ -56,7 +56,6 @@ export class WalletService implements IWalletService {
 
     try {
       await Promise.all(transactionPromises);
-
       const wallet = await this.walletRepository.findOneByAddress(address);
       if (!wallet) {
         throw new CustomError("NO WALLET FOUND");
@@ -86,7 +85,9 @@ export class WalletService implements IWalletService {
   //TODOPB : To be modified
   async updateWalletSummary(wallet: Wallet): Promise<void> {
     try {
+      console.log("Here, ", wallet);
       const tokenHistories = await this.tokenHistoryRepository.findAllByAddress(wallet.address);
+      console.log("Here");
       wallet.numberOfTokensTraded = tokenHistories.length;
       wallet.numberOfTxs = tokenHistories.reduce(
         (total, tokenHistory) => total + tokenHistory.numberOfTx,

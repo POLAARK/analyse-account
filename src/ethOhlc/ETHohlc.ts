@@ -4,20 +4,20 @@ import { Column, Entity, Index, PrimaryColumn } from "typeorm";
 export class EthOhlc {
   @PrimaryColumn({ type: "bigint" })
   @Index()
-  timestampOpen: number;
+  timestampOpen!: number;
 
   @Column({ type: "timestamp" })
-  dateOpen: Date;
+  dateOpen!: Date;
 
   @Column({ type: "decimal", precision: 10, scale: 4 })
-  priceOpen: number;
+  priceOpen!: number;
 
   @Column({ type: "decimal", precision: 10, scale: 4 })
-  priceHigh: number;
+  priceHigh!: number;
 
   @Column({ type: "decimal", precision: 10, scale: 4 })
-  priceLow: number;
+  priceLow!: number;
 
   @Column({ type: "decimal", precision: 10, scale: 4 })
-  priceClose: number;
+  priceClose!: number;
 }

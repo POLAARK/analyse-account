@@ -8,38 +8,38 @@ import { Wallet } from "../wallet/Wallet";
 export class TokenHistory {
   @ManyToOne((type) => Wallet)
   @JoinColumn({ name: "walletAddress" }) // 'walletAddress' is the column in TokenHistory
-  wallet: Wallet;
+  wallet!: Wallet;
 
   @PrimaryColumn({ type: "varchar", length: 50 })
-  tokenAddress: string;
+  tokenAddress!: string;
 
   @PrimaryColumn({ type: "varchar", length: 50 })
-  walletAddress: string;
+  walletAddress!: string;
 
   @Column({ type: "varchar", length: 20 })
-  tokenSymbol: string;
+  tokenSymbol!: string;
 
   @Column({ type: "float" })
-  EthGained: number;
+  EthGained!: number;
 
   @Column({ type: "float" })
-  EthSpent: number;
+  EthSpent!: number;
 
   @Column({ type: "float" })
-  USDSpent: number;
+  USDSpent!: number;
 
   @Column({ type: "float" })
-  USDGained: number;
+  USDGained!: number;
 
   @Column({ type: "int" })
-  numberOfTx: number;
+  numberOfTx!: number;
 
   @Column({ type: "bigint" })
-  lastTxBlock: number;
+  lastTxBlock!: number;
 
   @Column({ type: "float" })
-  performanceUSD: number;
+  performanceUSD!: number;
 
   @Column({ type: "varchar", length: 5, nullable: true })
-  pair: string;
+  pair!: string;
 }
