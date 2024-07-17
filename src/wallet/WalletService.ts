@@ -2,7 +2,7 @@ import { inject, injectable } from "inversify";
 import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
 import { type ILogger } from "../logger";
 import { type ITokenHistoryRepository, type ITokenHistoryService } from "../tokenHistory";
-import { type ITransactionRepository, type ITransactionService } from "../transaction";
+import { Transaction, type ITransactionRepository, type ITransactionService } from "../transaction";
 import { type IWalletRepository } from "./IWalletRepository";
 import { Wallet } from "./Wallet";
 import { type IWalletService } from "./IWalletService";
@@ -29,7 +29,11 @@ export class WalletService implements IWalletService {
    * @param timestamp
    * @returns
    */
-  async createWalletTradingHistory(address: string, timestamp: number): Promise<void> {
+  async createWalletTradingHistory(
+    address: string,
+    timestamp: number,
+    concurrent = true
+  ): Promise<void> {
     // Fetch only transactions newer than `timestamp`
 
     const transactions = await this.transactionRepository.findTransactionsByTimestamp(
@@ -38,24 +42,12 @@ export class WalletService implements IWalletService {
     );
     // If we already parsed them and so updated the db for the actual token history
     // We will cumulate double transfers
-    const transactionPromises = transactions.map(async (transaction) => {
-      try {
-        const transactionSummary =
-          await this.transactionService.getTransactionTransferSummaryFromLog(transaction, address);
-        return this.tokenHistoryService.updateWalletTokenHistory(
-          {
-            transferTxSummary: [...transactionSummary],
-          },
-          address
-        );
-      } catch (error) {
-        this.logger.error("Error during createTransactionTransferSummary");
-        this.logger.error(error);
-      }
-    });
+    const processTransactions = concurrent
+      ? this.processTransactionsConcurrently
+      : this.processTransactionsIteratively;
 
     try {
-      await Promise.all(transactionPromises);
+      await processTransactions.call(this, transactions, address);
       const wallet = await this.walletRepository.findOneByAddress(address);
       if (!wallet) {
         throw new CustomError("NO WALLET FOUND");
@@ -68,6 +60,39 @@ export class WalletService implements IWalletService {
     } catch (error) {
       this.logger.error(`Error in getAccountTradingHistory: `);
       this.logger.error(error);
+    }
+  }
+  async processTransactionsConcurrently(transactions: Transaction[], address: string) {
+    const transactionPromises = transactions.map(async (transaction) => {
+      try {
+        const transactionSummary =
+          await this.transactionService.getTransactionTransferSummaryFromLog(transaction, address);
+        return this.tokenHistoryService.updateWalletTokenHistory(
+          { transferTxSummary: [...transactionSummary] },
+          address
+        );
+      } catch (error) {
+        this.logger.error("Error during createTransactionTransferSummary");
+        this.logger.error(error);
+      }
+    });
+
+    await Promise.all(transactionPromises);
+  }
+
+  async processTransactionsIteratively(transactions: Transaction[], address: string) {
+    for (const transaction of transactions) {
+      try {
+        const transactionSummary =
+          await this.transactionService.getTransactionTransferSummaryFromLog(transaction, address);
+        await this.tokenHistoryService.updateWalletTokenHistory(
+          { transferTxSummary: [...transactionSummary] },
+          address
+        );
+      } catch (error) {
+        this.logger.error("Error during createTransactionTransferSummary");
+        this.logger.error(error);
+      }
     }
   }
 

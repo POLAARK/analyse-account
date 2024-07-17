@@ -51,7 +51,7 @@ export default {
     );
     await streamer.setWalletList([walletAddress]);
     await streamer.buildWalletTransactionHistory();
-    await walletService.createWalletTradingHistory(walletAddress, timestamp);
+    await walletService.createWalletTradingHistory(walletAddress, timestamp, false);
 
     const wallet = await walletRepository.findOneBy({
       where: { address: walletAddress },
