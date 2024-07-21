@@ -1,14 +1,5 @@
-import { EtherscanApiService, type IBlockchainScanApiService } from "../blockchainProvider";
 import { Container } from "inversify";
-import { TransactionStreamerService } from "../streamer/TransactionStreamerService";
-import { DataSource } from "typeorm";
-import {
-  type IWalletRepository,
-  type IWalletService,
-  WalletRepository,
-  WalletService,
-} from "../wallet";
-import { appDataSource } from "../app";
+import { EtherscanApiService, type IBlockchainScanApiService } from "../blockchainProvider";
 import {
   EthOhlcRepository,
   EthOhlService,
@@ -17,6 +8,7 @@ import {
 } from "../ethOhlc";
 import { type IJsonRpcProviderManager, JsonRpcProviderManager } from "../jsonRpcProvider";
 import { type ILogger, Logger } from "../logger";
+import { TransactionStreamerService } from "../streamer/TransactionStreamerService";
 import { type ITokenRepository, type ITokenService, TokenRepository, TokenService } from "../token";
 import {
   type ITokenHistoryRepository,
@@ -30,11 +22,16 @@ import {
   TransactionRepository,
   TransactionService,
 } from "../transaction";
+import {
+  type IWalletRepository,
+  type IWalletService,
+  WalletRepository,
+  WalletService,
+} from "../wallet";
 import SERVICE_IDENTIFIER from "./identifiers";
 
 let container = new Container();
 container.bind<IEthOhlcRepository>(SERVICE_IDENTIFIER.EthOhlcRepository).to(EthOhlcRepository);
-container.bind<DataSource>(SERVICE_IDENTIFIER.DataSource).toConstantValue(appDataSource);
 container.bind<IEthOhlcService>(SERVICE_IDENTIFIER.EthOhlcService).to(EthOhlService);
 container
   .bind<IJsonRpcProviderManager>(SERVICE_IDENTIFIER.JsonRpcProviderManager)

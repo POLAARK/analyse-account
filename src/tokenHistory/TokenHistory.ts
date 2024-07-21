@@ -1,4 +1,4 @@
-import { Entity, Column, Index, ManyToOne, JoinColumn, PrimaryColumn } from "typeorm";
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from "typeorm";
 import { Wallet } from "../wallet/Wallet";
 
 /**

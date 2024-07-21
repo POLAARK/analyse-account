@@ -135,7 +135,7 @@ import { TransactionStreamerService } from "./streamer/TransactionStreamerServic
 import type { MysqlConnectionOptions } from "typeorm/driver/mysql/MysqlConnectionOptions.js";
 import { ConfigObject } from "./config/Config";
 const filename = fileURLToPath(import.meta.url);
-const dirname = path.dirname(filename);
+const __dirname = path.dirname(filename);
 dotenv.config({ path: path.join(__dirname, "../.env") });
 const token: string | undefined = process.env.DISCORD_TOKEN;
 
@@ -145,6 +145,7 @@ if (!token) {
 }
 
 const logger = new Logger();
+
 export const appDataSource = new DataSource({
   logging: true,
   ...(ormConfig as MysqlConnectionOptions),
@@ -159,7 +160,6 @@ async function handleCliMode(walletAddress: string, timestamp: number) {
     const walletService = container.get<IWalletService>(SERVICE_IDENTIFIER.WalletService);
     const streamer = container.get(TransactionStreamerService);
 
-    console.log("Starting analysis for:", walletAddress);
     if (typeof walletAddress !== "string") {
       throw new Error("Wallet Address has to be a string");
     }
@@ -167,10 +167,13 @@ async function handleCliMode(walletAddress: string, timestamp: number) {
       timestamp ? timestamp : Date.now() / 1000 - 365 * 24 * 60 * 60 + (365 * 24 * 60 * 60) / 2
     );
 
-    const configObject = new ConfigObject(path.join(dirname, "../config/configFile.json"));
+    logger.info(`Starting analysis for: ${walletAddress}`);
+
+    const configObject = new ConfigObject(path.join(__dirname, "./config/configFile.json"));
     if (!configObject.rpcConfigs) {
       throw new Error("Invalid config: rpcConfigs is required");
     }
+
     await ethOhlcService.getEthOhlc(
       configObject.rpcConfigs.tokenAddress,
       configObject.rpcConfigs.poolAddress
@@ -179,7 +182,8 @@ async function handleCliMode(walletAddress: string, timestamp: number) {
     await streamer.buildWalletTransactionHistory();
     await walletService.createWalletTradingHistory(walletAddress, timestampValue, false);
 
-    const wallet = await walletRepository.findOneBy({
+    const wallets = await walletRepository.findAll();
+    const wallet = await walletRepository.find({
       where: { address: walletAddress },
       relations: ["tokenHistories"],
     });

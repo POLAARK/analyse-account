@@ -28,4 +28,5 @@ export interface ITransactionService {
     tokenHistory: TokenHistory;
     tokenPath: "IN" | "OUT" | undefined;
   }>;
+  getTransactionByTimestamp(address: string, timestamp: number): Promise<Transaction[]>;
 }

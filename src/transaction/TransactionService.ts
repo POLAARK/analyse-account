@@ -5,18 +5,17 @@ import { CustomError } from "../error/customError";
 import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
 import { type IJsonRpcProviderManager } from "../jsonRpcProvider/IJsonRpcProviderManager";
 import { type ILogger } from "../logger/ILogger";
-import { type ITokenRepository } from "../token/ITokenRepository";
 import { type ITokenService } from "../token/ITokenService";
-import { type ITokenHistoryRepository, TokenHistory } from "../tokenHistory";
-import { type ITransactionRepository, Transaction, type TransferTransaction } from "../transaction";
+import { TokenHistory, type ITokenHistoryRepository } from "../tokenHistory";
+import { Transaction, type ITransactionRepository, type TransferTransaction } from "../transaction";
 import { containsUsdOrEth } from "../utils";
 import { BigIntDivisionForAmount } from "../utils/BingIntDivision";
+
 @injectable()
 export class TransactionService {
   constructor(
     @inject(SERVICE_IDENTIFIER.JsonRpcProviderManager)
     private readonly jsonRpcProviderManager: IJsonRpcProviderManager,
-    @inject(SERVICE_IDENTIFIER.TokenRepository) private readonly tokenRepository: ITokenRepository,
     @inject(SERVICE_IDENTIFIER.TransactionRepository)
     private readonly transactionRepository: ITransactionRepository,
     @inject(SERVICE_IDENTIFIER.Logger) private readonly logger: ILogger,
@@ -246,5 +245,9 @@ export class TransactionService {
     return await this.transactionRepository.findOneBy({
       hash: txhash,
     });
+  }
+
+  async getTransactionByTimestamp(address: string, timestamp: number) {
+    return await this.transactionRepository.findTransactionsByTimestamp(address, timestamp);
   }
 }

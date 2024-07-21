@@ -60,6 +60,7 @@ export class TokenHistoryRepository
   }
 
   async findAllByAddress(address: string): Promise<TokenHistory[]> {
+    console.log("in all token history by wallet address");
     return await this.repository.find({ where: { walletAddress: address } });
   }
 }

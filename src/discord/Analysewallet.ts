@@ -29,6 +29,7 @@ export default {
     const walletRepository = container.get<IWalletRepository>(SERVICE_IDENTIFIER.WalletRepository);
     const walletService = container.get<IWalletService>(SERVICE_IDENTIFIER.WalletService);
     const streamer = container.get(TransactionStreamerService);
+
     const walletAddress = interaction.options.get("target", true).value;
     if (typeof walletAddress !== "string") {
       throw new Error("Wallet Address has to be a string");

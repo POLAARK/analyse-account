@@ -11,16 +11,16 @@ import { CustomError } from "../error/customError";
 @injectable()
 export class WalletService implements IWalletService {
   constructor(
-    @inject(SERVICE_IDENTIFIER.TransactionRepository)
-    private readonly transactionRepository: ITransactionRepository,
     @inject(SERVICE_IDENTIFIER.TransactionService)
     private readonly transactionService: ITransactionService,
+    @inject(SERVICE_IDENTIFIER.TokenHistoryService)
+    private readonly tokenHistory: ITokenHistoryService,
     @inject(SERVICE_IDENTIFIER.TokenHistoryService)
     private readonly tokenHistoryService: ITokenHistoryService,
     @inject(SERVICE_IDENTIFIER.Logger) private readonly logger: ILogger,
     @inject(SERVICE_IDENTIFIER.WalletRepository)
     private readonly walletRepository: IWalletRepository,
-    @inject(SERVICE_IDENTIFIER.TransactionService)
+    @inject(SERVICE_IDENTIFIER.TokenHistoryRepository)
     private readonly tokenHistoryRepository: ITokenHistoryRepository
   ) {}
   /**
@@ -35,17 +35,22 @@ export class WalletService implements IWalletService {
     concurrent = true
   ): Promise<void> {
     // Fetch only transactions newer than `timestamp`
-
-    const transactions = await this.transactionRepository.findTransactionsByTimestamp(
-      address,
-      timestamp
-    );
+    // const transactions = await this.transactionRepository.findTransactionsByTimestamp(
+    //   address,
+    //   timestamp
+    // );
     // If we already parsed them and so updated the db for the actual token history
     // We will cumulate double transfers
     const processTransactions = concurrent
       ? this.processTransactionsConcurrently
       : this.processTransactionsIteratively;
 
+    const transactions = await this.transactionService.getTransactionByTimestamp(
+      address,
+      timestamp
+    );
+
+    console.log(processTransactions);
     try {
       await processTransactions.call(this, transactions, address);
       const wallet = await this.walletRepository.findOneByAddress(address);
@@ -62,6 +67,7 @@ export class WalletService implements IWalletService {
       this.logger.error(error);
     }
   }
+
   async processTransactionsConcurrently(transactions: Transaction[], address: string) {
     const transactionPromises = transactions.map(async (transaction) => {
       try {
@@ -110,9 +116,7 @@ export class WalletService implements IWalletService {
   //TODOPB : To be modified
   async updateWalletSummary(wallet: Wallet): Promise<void> {
     try {
-      console.log("Here, ", wallet);
       const tokenHistories = await this.tokenHistoryRepository.findAllByAddress(wallet.address);
-      console.log("Here");
       wallet.numberOfTokensTraded = tokenHistories.length;
       wallet.numberOfTxs = tokenHistories.reduce(
         (total, tokenHistory) => total + tokenHistory.numberOfTx,

@@ -19,6 +19,7 @@
       "test/*": ["test/*"],
       "~/*": ["src/*"]
     },
+    "sourceMap": true,
     "outDir": "dist",
     "typeRoots": ["src/types", "node_modules/@types"],
     "baseUrl": ".",

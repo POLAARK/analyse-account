@@ -11,13 +11,13 @@ import {
 } from "typeorm";
 import { type IGenericRepository } from "./IGenericRepository";
 import { CustomError } from "~/error/customError";
+import { appDataSource } from "~/app";
 
 @injectable()
 export class TypeOrmRepository<T extends ObjectLiteral> implements IGenericRepository<T> {
   repository: Repository<T>;
-  dataSource = container.get<DataSource>(SERVICE_IDENTIFIER.DataSource);
   constructor(@unmanaged() target: EntityTarget<T>) {
-    this.repository = new Repository(target, this.dataSource.createEntityManager());
+    this.repository = new Repository(target, appDataSource.createEntityManager());
   }
 
   async save(entity: T): Promise<T> {
