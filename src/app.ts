@@ -154,7 +154,6 @@ export const appDataSource = new DataSource({
 // Function to handle CLI mode
 async function handleCliMode(walletAddress: string, timestamp: number) {
   try {
-    // This logic will mimic what happens in your Discord command execute function
     const ethOhlcService = container.get<IEthOhlcService>(SERVICE_IDENTIFIER.EthOhlcService);
     const walletRepository = container.get<IWalletRepository>(SERVICE_IDENTIFIER.WalletRepository);
     const walletService = container.get<IWalletService>(SERVICE_IDENTIFIER.WalletService);
@@ -163,11 +162,8 @@ async function handleCliMode(walletAddress: string, timestamp: number) {
     if (typeof walletAddress !== "string") {
       throw new Error("Wallet Address has to be a string");
     }
-    const timestampValue = Number(
-      timestamp ? timestamp : Date.now() / 1000 - 365 * 24 * 60 * 60 + (365 * 24 * 60 * 60) / 2
-    );
 
-    logger.info(`Starting analysis for: ${walletAddress}`);
+    logger.info(`Starting analysis for: ${walletAddress} from ${new Date(timestamp)}`);
 
     const configObject = new ConfigObject(path.join(__dirname, "./config/configFile.json"));
     if (!configObject.rpcConfigs) {
@@ -180,7 +176,7 @@ async function handleCliMode(walletAddress: string, timestamp: number) {
     );
     await streamer.setWalletList([walletAddress]);
     await streamer.buildWalletTransactionHistory();
-    await walletService.createWalletTradingHistory(walletAddress, timestampValue, false);
+    await walletService.createWalletTradingHistory(walletAddress, timestamp, false);
 
     const wallets = await walletRepository.findAll();
     const wallet = await walletRepository.find({
@@ -203,7 +199,8 @@ async function init() {
     const walletAddress = process.argv[2];
     const timestamp = process.argv[3]
       ? parseInt(process.argv[3], 10)
-      : Date.now() / 1000 - (365 * 24 * 60 * 60) / 2;
+      : Math.trunc(Date.now() / 1000 - (365 * 24 * 60 * 60) / 2);
+    console.log(walletAddress, timestamp);
     await handleCliMode(walletAddress, timestamp);
   } else {
     const client: any = new Client({

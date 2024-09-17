@@ -50,7 +50,6 @@ export class WalletService implements IWalletService {
       timestamp
     );
 
-    console.log(processTransactions);
     try {
       await processTransactions.call(this, transactions, address);
       const wallet = await this.walletRepository.findOneByAddress(address);
@@ -91,6 +90,7 @@ export class WalletService implements IWalletService {
       try {
         const transactionSummary =
           await this.transactionService.getTransactionTransferSummaryFromLog(transaction, address);
+        console.log(transactionSummary);
         await this.tokenHistoryService.updateWalletTokenHistory(
           { transferTxSummary: [...transactionSummary] },
           address

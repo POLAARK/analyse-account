@@ -183,62 +183,99 @@ export class TransactionService {
     let fallbackTransfer: TransferTransaction | null = null;
     let tokenHistory: TokenHistory | null = null;
     let tokenPath: "IN" | "OUT" | undefined;
-    for (const transferTx of transferTxSummary) {
-      // Skip transactions that are either incomplete (can't define if they are in or out the current wallet) or do not involve USD or ETH.
-      if (!transferTx?.status || containsUsdOrEth(transferTx.symbol)) {
-        continue;
-      }
 
-      // If all transactions
-      if (!fallbackTransfer) {
-        fallbackTransfer = transferTx;
-      }
+    try {
+      for (const transferTx of transferTxSummary) {
+        // Skip transactions that are either incomplete (can't define if they are in or out the current wallet) or do not involve USD or ETH.
+        if (!transferTx?.status || !containsUsdOrEth(transferTx.symbol)) {
+          continue;
+        }
 
-      tokenHistory = await this.tokenHistoryRepository.findOneBy({
-        where: {
-          tokenAddress: transferTx.tokenAdress,
-          walletAddress: walletAddress,
-        },
-      });
+        if (!fallbackTransfer) {
+          fallbackTransfer = transferTx;
+        }
 
-      // Determines the current transaction to work.
-      // We will update account and token history values using this Transfer
-      if (tokenHistory) {
-        const transactionIndex = transferTxSummary.indexOf(transferTx);
-        tokenPath = transferTx.status;
-        if (transactionIndex > -1) {
-          transferTxSummary.splice(transactionIndex, 1);
-          break;
+        try {
+          tokenHistory = await this.tokenHistoryRepository.findOneBy({
+            tokenAddress: transferTx.tokenAdress,
+            walletAddress: walletAddress,
+          });
+        } catch (error: any) {
+          console.error(`Error fetching token history for ${transferTx.tokenAdress}:`, error);
+          // Handle specific token history fetch errors or rethrow if necessary
+          throw new CustomError(
+            `Failed to fetch token history for token address ${transferTx.tokenAdress}`,
+            "CAN'T_FIND_MAIN_TOKEN",
+            error
+          );
+        }
+
+        // Determines the current transaction to work.
+        // We will update account and token history values using this Transfer
+        if (tokenHistory) {
+          const transactionIndex = transferTxSummary.indexOf(transferTx);
+          tokenPath = transferTx.status;
+          if (transactionIndex > -1) {
+            transferTxSummary.splice(transactionIndex, 1);
+            break;
+          }
         }
       }
-    }
 
-    // If no token have been found
-    // But there is an acceptable IN OUT Transfer (fallback)
-    // We record a new tokenHistory
-    if (!tokenHistory && fallbackTransfer) {
-      let tokenHistory = new TokenHistory();
-      tokenHistory.walletAddress = walletAddress;
-      tokenHistory.tokenAddress = fallbackTransfer.tokenAdress;
-      tokenHistory.tokenSymbol = fallbackTransfer.symbol;
-      tokenHistory.EthGained = 0;
-      tokenHistory.EthSpent = 0;
-      tokenHistory.USDSpent = 0;
-      tokenHistory.USDGained = 0;
-      tokenHistory.numberOfTx = 0;
-      tokenHistory.lastTxBlock = transferTxSummary[0].blockNumber;
-      tokenHistory.performanceUSD = 0;
-      tokenHistory.pair = "";
-      tokenPath = fallbackTransfer.status;
-      let index = transferTxSummary.indexOf(fallbackTransfer);
-      if (index > -1) {
-        transferTxSummary.splice(index, 1);
+      // If no token have been found
+      // But there is an acceptable IN OUT Transfer (fallback)
+      // We record a new tokenHistory
+      if (!tokenHistory && fallbackTransfer) {
+        try {
+          tokenHistory = new TokenHistory();
+          tokenHistory.walletAddress = walletAddress;
+          tokenHistory.tokenAddress = fallbackTransfer.tokenAdress;
+          tokenHistory.tokenSymbol = fallbackTransfer.symbol;
+          tokenHistory.EthGained = 0;
+          tokenHistory.EthSpent = 0;
+          tokenHistory.USDSpent = 0;
+          tokenHistory.USDGained = 0;
+          tokenHistory.numberOfTx = 0;
+          tokenHistory.lastTxBlock = transferTxSummary[0].blockNumber;
+          tokenHistory.performanceUSD = 0;
+          tokenHistory.pair = "";
+          tokenPath = fallbackTransfer.status;
+          let index = transferTxSummary.indexOf(fallbackTransfer);
+          if (index > -1) {
+            transferTxSummary.splice(index, 1);
+          }
+        } catch (error) {
+          console.error("Error creating fallback token history:", error);
+          throw new CustomError(
+            "Failed to create fallback token history.",
+            "CAN'T_FIND_MAIN_TOKEN",
+            error
+          );
+        }
+      }
+
+      if (!tokenHistory) {
+        throw new CustomError(
+          `Can't create token history for transaction at block ${transferTxSummary[0].blockNumber}`
+        );
+      }
+
+      return {
+        updatedTransferTransactionSummary: transferTxSummary,
+        tokenHistory,
+        tokenPath,
+      };
+    } catch (error) {
+      if (error instanceof CustomError) {
+        throw error;
+      } else {
+        throw new CustomError(
+          "Failed to find main token traded in the transaction.",
+          "CAN'T_FIND_MAIN_TOKEN",
+          error
+        );
       }
     }
-    if (!tokenHistory) {
-      throw new CustomError("Can't creat token history");
-    }
-    return { updatedTransferTransactionSummary: transferTxSummary, tokenHistory, tokenPath };
   }
 
   async getAccountTransaction(txhash: string) {

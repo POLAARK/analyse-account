@@ -1,8 +1,10 @@
+import type { FindManyOptions, FindOptionsWhere } from "typeorm";
+
 // interfaces/IGenericRepository.ts
 export interface IGenericRepository<T> {
-  findOneBy(whereOptions: any): Promise<T | null>;
+  findOneBy(whereOptions: FindOptionsWhere<T>): Promise<T | null>;
   findAll(): Promise<T[]>;
-  find(whereOptions: any): Promise<T[] | undefined>;
+  find(whereOptions: FindManyOptions<T>): Promise<T[] | undefined>;
   save(entity: T): Promise<T>;
   delete(id: number): Promise<void>;
 }

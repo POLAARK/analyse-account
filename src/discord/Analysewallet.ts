@@ -54,12 +54,16 @@ export default {
     await streamer.buildWalletTransactionHistory();
     await walletService.createWalletTradingHistory(walletAddress, timestamp, false);
 
-    const wallet = await walletRepository.findOneBy({
+    const wallet = await walletRepository.find({
       where: { address: walletAddress },
       relations: ["tokenHistories"],
     });
 
-    const walletData = JSON.stringify(wallet, null, 2);
+    if (!wallet) {
+      throw Error("No wallet created for this walletAddress");
+    }
+
+    const walletData = JSON.stringify(wallet[0], null, 2);
 
     const filepath = path.join(dirname, `${walletAddress}Data.json`);
 

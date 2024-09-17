@@ -24,7 +24,7 @@ export class TokenHistoryService implements ITokenHistoryService {
     private readonly ethOhlcService: IEthOhlcService,
     @inject(SERVICE_IDENTIFIER.TransactionService)
     private readonly transactionService: ITransactionService,
-    @inject(SERVICE_IDENTIFIER.TransactionService)
+    @inject(SERVICE_IDENTIFIER.TokenHistoryRepository)
     private readonly tokenHistoryRepository: ITokenHistoryRepository
   ) {}
 
@@ -78,7 +78,12 @@ export class TokenHistoryService implements ITokenHistoryService {
         tokenPath
       );
     }
-    this.tokenHistoryRepository.saveOrUpdateTokenHistory(tokenHistory, 3);
+    try {
+      await this.tokenHistoryRepository.saveOrUpdateTokenHistory(tokenHistory, 3);
+    } catch (err) {
+      console.log(err);
+      throw Error("Error saving token History");
+    }
     return;
   }
 

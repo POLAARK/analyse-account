@@ -43,7 +43,7 @@ export class EtherscanApiService implements IBlockchainScanApiService {
       }
     }
     if (response.message == "No transactions found") {
-      this.logger.error("No transaction found for this chain : " + this.#endpoint);
+      this.logger.error("No normal transactions found for this chain : " + this.#endpoint);
     } else {
       if (response.status !== "1" || response.message !== "OK") {
         this.logger.error(response);
@@ -89,7 +89,7 @@ export class EtherscanApiService implements IBlockchainScanApiService {
       }
     }
     if (response.message == "No transactions found") {
-      this.logger.error("No transaction found for this chain : " + this.#endpoint);
+      this.logger.error("No internal transactions found for this chain : " + this.#endpoint);
     } else {
       if (response.status !== "1" || response.message !== "OK") {
         this.logger.error(response);

@@ -1,39 +1,34 @@
 import "reflect-metadata";
-import type { TransactionReceipt } from "ethers";
 import { appDataSource } from "./app";
 import { container } from "./ioc_container/container";
 import SERVICE_IDENTIFIER from "./ioc_container/identifiers";
-import type { JsonRpcProviderManager } from "./jsonRpcProvider";
+import type { ITransactionRepository, ITransactionService } from "./transaction";
 
 appDataSource.initialize().then(async () => {
   await appDataSource.synchronize().catch((error) => {});
-  const jsonRpcProviderManager = container.get<JsonRpcProviderManager>(
-    SERVICE_IDENTIFIER.JsonRpcProviderManager
-  );
-  const transactionReceipt = await jsonRpcProviderManager.callProviderMethod<TransactionReceipt>(
-    "getTransactionReceipt",
-    ["0xc34cb409aad729bd8b05389ea8707c37b452cdbb9d3a413833001d4b96cf2f3f"],
-    1000
-  );
-  console.log(transactionReceipt);
-  console.log(transactionReceipt.logs);
+
   // 0xc34cb409aad729bd8b05389ea8707c37b452cdbb9d3a413833001d4b96cf2f3f
   // const account = new Account("0x42a1ef5FfDaf134EB958814E443Db9c244375C8f");
   // const streamer = new TransactionStreamer([account]);
+  const transactionService = container.get<ITransactionService>(
+    SERVICE_IDENTIFIER.TransactionService
+  );
 
+  const transactionRepository = container.get<ITransactionRepository>(
+    SERVICE_IDENTIFIER.TransactionRepository
+  );
   // // TODO put this in repo
-  // const transaction = await account.getAccountTransaction(
-  //   "0xc092ae71d39ab60bea06fc83e8490e9363b5bf6848b36811c36dceaadec3ce27".toLowerCase()
-  // );
-  // const transactionTransferSummary = await account.getTransactionTransferSummary(transaction);
-  // await account.updateBalances({
-  //   transferTxSummary: [...transactionTransferSummary],
-  // });
-});
+  const transaction = await transactionRepository.findOneBy({
+    hash: "0xa7ce2bd6e006c7d093322be86e1923e646b47fffaff82e400e26a9aded51d310",
+  });
+  if (!transaction) {
+    throw new Error("No transaction found.");
+  }
 
-// await streamer.builtAccountTransactionHistory();
-// await account.getAccountTransactions();
-// const transaction = account.getAccountTransaction(
-//   "0xb4e671a38fad09e8f1d24c91509a6875ea02b332438b41383c74ec68e8bd9eb8"
-// );
-// await account.processTransaction(transaction);
+  const transferSummaryFromLog = await transactionService.getTransactionTransferSummaryFromLog(
+    transaction,
+    "0x42a1ef5ffdaf134eb958814e443db9c244375c8f"
+  );
+
+  console.log(transferSummaryFromLog);
+});

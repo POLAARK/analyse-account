@@ -46,7 +46,9 @@ export class TokenService implements ITokenService {
     } catch (err: any) {
       // Handle errors that may occur during the fetch process
       if (err.code === "CALL_EXCEPTION") {
-        this.logger.warn(`Call exception for token at address ${address}`);
+        this.logger.warn(
+          `Call exception for token at address ${address} either no decimals nor name`
+        );
       } else {
         this.logger.error(`Error fetching token details for address ${address}: ${err}`);
       }
