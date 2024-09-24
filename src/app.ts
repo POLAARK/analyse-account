@@ -154,7 +154,9 @@ export const appDataSource = new DataSource({
 // Function to handle CLI mode
 async function handleCliMode(walletAddress: string, timestamp: number) {
   try {
+    // Get the services and repository from the continaer
     const ethOhlcService = container.get<IEthOhlcService>(SERVICE_IDENTIFIER.EthOhlcService);
+    // TODO : Repository should not be accessed, we should acces it using the service layer
     const walletRepository = container.get<IWalletRepository>(SERVICE_IDENTIFIER.WalletRepository);
     const walletService = container.get<IWalletService>(SERVICE_IDENTIFIER.WalletService);
     const streamer = container.get(TransactionStreamerService);
@@ -174,11 +176,12 @@ async function handleCliMode(walletAddress: string, timestamp: number) {
       configObject.rpcConfigs.tokenAddress,
       configObject.rpcConfigs.poolAddress
     );
-    await streamer.setWalletList([walletAddress]);
+    streamer.setWalletList([walletAddress]);
+    // Create the transactionHistory for the wallet
     await streamer.buildWalletTransactionHistory();
+    // Using the algorithm traduce the transaction history into a trading history
     await walletService.createWalletTradingHistory(walletAddress, timestamp, false);
-
-    const wallets = await walletRepository.findAll();
+    
     const wallet = await walletRepository.find({
       where: { address: walletAddress },
       relations: ["tokenHistories"],
@@ -194,8 +197,8 @@ async function handleCliMode(walletAddress: string, timestamp: number) {
 
 // Main initialization function
 async function init() {
+  // npm run prod address fromTimestamp --> activate CLI mode
   if (process.argv.length > 2) {
-    // Assume CLI mode
     const walletAddress = process.argv[2];
     const timestamp = process.argv[3]
       ? parseInt(process.argv[3], 10)
@@ -203,6 +206,7 @@ async function init() {
     console.log(walletAddress, timestamp);
     await handleCliMode(walletAddress, timestamp);
   } else {
+    // If we don't run using CLI we run it using Discord
     const client: any = new Client({
       intents: [
         GatewayIntentBits.Guilds,
@@ -211,7 +215,7 @@ async function init() {
         GatewayIntentBits.GuildMessageReactions,
       ],
     });
-    // additional setup and event handlers for the client
+
     const channelId = process.env.CHANNEL_ID;
 
     client.commands = new Collection();
@@ -272,7 +276,7 @@ async function init() {
 }
 
 appDataSource.initialize().then(async () => {
-  await appDataSource.synchronize().catch((error) => {
+  await appDataSource.synchronize().catch((error: any) => {
     logger.error("Synchronize error : ");
     logger.error(error);
   });

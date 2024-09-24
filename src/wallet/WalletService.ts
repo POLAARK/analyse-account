@@ -39,6 +39,7 @@ export class WalletService implements IWalletService {
     //   address,
     //   timestamp
     // );
+    
     // If we already parsed them and so updated the db for the actual token history
     // We will cumulate double transfers
     const processTransactions = concurrent
