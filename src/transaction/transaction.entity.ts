@@ -23,6 +23,10 @@ export interface TransferTransaction {
   to: string;
   symbol: string;
   status?: "IN" | "OUT";
+  /** Raw amount in smallest token units (wei-scale integer) as a decimal string. */
+  amountRaw?: string;
+  /** Token decimals used to interpret amountRaw. */
+  tokenDecimals?: number;
 }
 
 export interface TransactionResponseExtended extends TransactionResponse {

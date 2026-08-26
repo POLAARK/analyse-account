@@ -1,4 +1,4 @@
-import { ethers, formatEther, Interface, LogDescription, TransactionReceipt } from "ethers";
+import { ethers, Interface, LogDescription, TransactionReceipt } from "ethers";
 import { inject, injectable } from "inversify";
 import { erc20 } from "../abis/erc20";
 import { CustomError } from "../error/customError";
@@ -9,7 +9,7 @@ import { type ITokenService } from "../token/ITokenService";
 import { TokenHistory, type ITokenHistoryRepository } from "../tokenHistory";
 import { Transaction, type ITransactionRepository, type TransferTransaction } from "../transaction";
 import { containsUsdOrEth } from "../utils";
-import { BigIntDivisionForAmount } from "../utils/BingIntDivision";
+import { addRawAmounts, formatUnitsToFixed } from "../utils/tokenUnits";
 
 @injectable()
 export class TransactionService {
@@ -42,8 +42,7 @@ export class TransactionService {
     transferTransactionSummary: TransferTransaction[],
     transactionReceipt: TransactionReceipt,
   ): void {
-    const valueWei = BigInt(transaction.value); // Convert string to BigNumber
-    const valueEther = formatEther(valueWei); // Convert wei to ether
+    const valueWei = BigInt(transaction.value); // Raw native amount in wei
 
     if (valueWei !== 0n) {
       transferTransactionSummary.push({
@@ -52,7 +51,9 @@ export class TransactionService {
         tokenAdress: "0x0",
         from: transactionReceipt.from,
         to: transactionReceipt.to || "",
-        amount: parseFloat(parseFloat(valueEther).toFixed(3)), // Convert ether string to a fixed decimal format
+        amountRaw: valueWei.toString(),
+        tokenDecimals: 18,
+        amount: parseFloat(formatUnitsToFixed(valueWei.toString(), 18, 3)),
         symbol: "WETH",
         status: "OUT",
       });
@@ -107,26 +108,24 @@ export class TransactionService {
           this.jsonRpcProviderManager.getCurrentProvider(),
         );
 
-        const { tokenSymbol, tokenDecimals } = await this.tokenService.getTokenDetails(
-          tokenAddress,
-          contractERC20,
-        );
+        const { tokenSymbol, tokenDecimals: tokenDecimalsRaw } =
+          await this.tokenService.getTokenDetails(tokenAddress, contractERC20);
 
         const parsedLog: LogDescription | null = interfaceERC20.parseLog(logCopy);
 
         //Correct TransferObject May be to be saved to DB ?
         if (parsedLog?.name && parsedLog.name === "Transfer") {
+          const amountRaw = (parsedLog.args[2] as bigint).toString();
+          const tokenDecimals = Number(tokenDecimalsRaw);
           const transferTx: TransferTransaction = {
             blockNumber: transaction.blockNumber,
             timestamp: parseInt(transaction?.timeStamp.toString(), 10),
             tokenAdress: tokenAddress,
             from: parsedLog.args[0],
             to: parsedLog.args[1],
-            amount: parseFloat(
-              Number(
-                BigIntDivisionForAmount(parsedLog.args[2] as bigint, BigInt(10) ** tokenDecimals),
-              ).toFixed(3),
-            ),
+            amountRaw,
+            tokenDecimals,
+            amount: parseFloat(formatUnitsToFixed(amountRaw, tokenDecimals, 3)),
             symbol: tokenSymbol,
             status: this.determineTransactionType(address, parsedLog),
           };
@@ -160,6 +159,24 @@ export class TransactionService {
 
       if (aggregatedTransaction) {
         aggregatedTransaction.amount += tx.amount;
+        if (
+          aggregatedTransaction.amountRaw !== undefined &&
+          tx.amountRaw !== undefined &&
+          aggregatedTransaction.tokenDecimals !== undefined &&
+          tx.tokenDecimals !== undefined
+        ) {
+          // Lossless accumulation: sum raw amounts in bigint, then derive the display amount once.
+          const { sumRaw, decimals } = addRawAmounts(
+            aggregatedTransaction.amountRaw,
+            aggregatedTransaction.tokenDecimals,
+            tx.amountRaw,
+            tx.tokenDecimals,
+          );
+          const sumRawText = sumRaw.toString();
+          aggregatedTransaction.amountRaw = sumRawText;
+          aggregatedTransaction.tokenDecimals = decimals;
+          aggregatedTransaction.amount = parseFloat(formatUnitsToFixed(sumRawText, decimals, 3));
+        }
       } else {
         aggregatedTransactions.set(key, { ...tx });
       }
