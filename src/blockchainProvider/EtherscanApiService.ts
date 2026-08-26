@@ -9,12 +9,15 @@ import type { IBlockchainScanApiService } from "./IBlockchainScanApiService";
 
 const ETHERSCAN_ENDPOINT = "https://api.etherscan.io/v2/api";
 const RATE_LIMIT_DELAY_MS = 15 * 60 * 1000;
+const MAX_PAGES = 500;
 
 type TransactionAction = "txlist" | "txlistinternal";
 type TransactionKind = "normal" | "internal";
 
 @injectable()
 export class EtherscanApiService implements IBlockchainScanApiService {
+  protected rateLimitDelayMs: number = RATE_LIMIT_DELAY_MS;
+
   constructor(@inject(SERVICE_IDENTIFIER.Logger) private readonly logger: ILogger) {}
 
   async getNormalTransactions(
@@ -85,11 +88,57 @@ export class EtherscanApiService implements IBlockchainScanApiService {
     if (offset < 1) {
       throw new Error("Etherscan offset must be positive");
     }
-    const apiKey = process.env.ETHERSCAN_API_KEY;
-    if (!apiKey) {
-      throw new Error("ETHERSCAN_API_KEY is required");
-    }
+    getApiKey();
 
+    const transactions: BlockchainTransaction[] = [];
+    for (let page = 1; page <= MAX_PAGES; page++) {
+      let pageTransactions: BlockchainTransaction[];
+      try {
+        pageTransactions = await this.fetchTransactionsPage(
+          action,
+          kind,
+          address,
+          startBlock,
+          endBlock,
+          offset,
+          page,
+        );
+      } catch (error) {
+        if (!isRateLimitError(error)) throw error;
+
+        this.logger.error("Etherscan rate limit reached; retrying after delay");
+        await delay(this.rateLimitDelayMs);
+        pageTransactions = await this.fetchTransactionsPage(
+          action,
+          kind,
+          address,
+          startBlock,
+          endBlock,
+          offset,
+          page,
+        );
+      }
+      for (const transaction of pageTransactions) {
+        transactions.push(transaction);
+      }
+      if (pageTransactions.length < offset) {
+        return transactions;
+      }
+    }
+    throw new Error(
+      `Etherscan ${kind} transactions for address ${address} between blocks ${startBlock} and ${endBlock} filled ${MAX_PAGES} pages of ${offset} items without reaching the end; possible truncation`,
+    );
+  }
+
+  protected async fetchTransactionsPage(
+    action: TransactionAction,
+    kind: TransactionKind,
+    address: string,
+    startBlock: number,
+    endBlock: number,
+    offset: number,
+    page: number,
+  ): Promise<BlockchainTransaction[]> {
     const requestUrl = new URL(ETHERSCAN_ENDPOINT);
     requestUrl.search = new URLSearchParams({
       chainid: getChainId(),
@@ -98,22 +147,13 @@ export class EtherscanApiService implements IBlockchainScanApiService {
       address,
       startblock: startBlock.toString(),
       endblock: endBlock.toString(),
-      page: "1",
+      page: page.toString(),
       offset: offset.toString(),
       sort: "asc",
-      apikey: apiKey,
+      apikey: getApiKey(),
     }).toString();
 
-    let response: unknown;
-    try {
-      response = await fetchHttpJson(requestUrl.href, {}, this.logger);
-    } catch (error) {
-      if (!isRateLimitError(error)) throw error;
-
-      this.logger.error("Etherscan rate limit reached; retrying after delay");
-      await delay(RATE_LIMIT_DELAY_MS);
-      response = await fetchHttpJson(requestUrl.href, {}, this.logger);
-    }
+    const response = await fetchHttpJson(requestUrl.href, {}, this.logger);
 
     if (!isEtherscanHistory(response)) {
       throw new Error(`Etherscan returned an invalid ${kind} transaction response`);
@@ -128,6 +168,14 @@ export class EtherscanApiService implements IBlockchainScanApiService {
     }
     return response.result;
   }
+}
+
+function getApiKey(): string {
+  const apiKey = process.env.ETHERSCAN_API_KEY;
+  if (!apiKey) {
+    throw new Error("ETHERSCAN_API_KEY is required");
+  }
+  return apiKey;
 }
 
 function getChainId(): string {
