@@ -5,18 +5,18 @@ export type EtherscanHistory = {
 };
 
 export type BlockchainTransaction = {
-  blockNumber: number;
-  timeStamp: number;
+  blockNumber: string;
+  timeStamp: string;
   hash: string;
   from: string;
   to: string;
-  value: number;
+  value: string;
   contractAddress: string;
   input: string;
-  type: string;
-  gas: number;
-  gasUsed: number;
-  traceId: number;
-  isError: string;
-  errCode: string;
+  type?: string;
+  gas: string;
+  gasUsed?: string;
+  traceId?: string;
+  isError?: string;
+  errCode?: string;
 };

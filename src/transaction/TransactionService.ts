@@ -21,17 +21,17 @@ export class TransactionService {
     @inject(SERVICE_IDENTIFIER.Logger) private readonly logger: ILogger,
     @inject(SERVICE_IDENTIFIER.TokenService) private readonly tokenService: ITokenService,
     @inject(SERVICE_IDENTIFIER.TokenHistoryRepository)
-    private readonly tokenHistoryRepository: ITokenHistoryRepository
+    private readonly tokenHistoryRepository: ITokenHistoryRepository,
   ) {}
 
   determineTransactionType(
     accountAddress: string,
-    parsedLog: LogDescription
+    parsedLog: LogDescription,
   ): "IN" | "OUT" | undefined {
-    if (parsedLog.args[0].toUpperCase() == accountAddress.toUpperCase()) {
+    if (parsedLog.args[0].toUpperCase() === accountAddress.toUpperCase()) {
       return "OUT";
     }
-    if (parsedLog.args[1].toUpperCase() == accountAddress.toUpperCase()) {
+    if (parsedLog.args[1].toUpperCase() === accountAddress.toUpperCase()) {
       return "IN";
     }
     return undefined;
@@ -40,15 +40,15 @@ export class TransactionService {
   addTransferTransactionIfValue(
     transaction: Transaction,
     transferTransactionSummary: TransferTransaction[],
-    transactionReceipt: TransactionReceipt
+    transactionReceipt: TransactionReceipt,
   ): void {
     const valueWei = BigInt(transaction.value); // Convert string to BigNumber
     const valueEther = formatEther(valueWei); // Convert wei to ether
 
-    if (!(valueWei == BigInt(0))) {
+    if (valueWei !== 0n) {
       transferTransactionSummary.push({
         blockNumber: transaction.blockNumber,
-        timestamp: parseInt(transaction?.timeStamp.toString()),
+        timestamp: parseInt(transaction?.timeStamp.toString(), 10),
         tokenAdress: "0x0",
         from: transactionReceipt.from,
         to: transactionReceipt.to || "",
@@ -69,20 +69,20 @@ export class TransactionService {
    */
   async getTransactionTransferSummaryFromLog(
     transaction: Transaction,
-    address: string
+    address: string,
   ): Promise<TransferTransaction[]> {
     const interfaceERC20 = new Interface(erc20);
-    let transferTransactionSummary: TransferTransaction[] = [];
+    const transferTransactionSummary: TransferTransaction[] = [];
     try {
       const transactionReceipt =
         await this.jsonRpcProviderManager.callProviderMethod<TransactionReceipt>(
           "getTransactionReceipt",
           [transaction.hash],
-          1000
+          1000,
         );
 
       if (!transactionReceipt.logs) {
-        throw new CustomError("NO_LOGS", "Transaction Logs : " + transactionReceipt.toString());
+        throw new CustomError("NO_LOGS", `Transaction Logs : ${transactionReceipt.toString()}`);
       }
       // If value we assume that the value send is the value traded
       // To keep the same logic we just add a transferTx object
@@ -90,10 +90,10 @@ export class TransactionService {
       this.addTransferTransactionIfValue(
         transaction,
         transferTransactionSummary,
-        transactionReceipt
+        transactionReceipt,
       );
 
-      for (let log of transactionReceipt.logs) {
+      for (const log of transactionReceipt.logs) {
         //Create a logCopy because of types :)
         const logCopy = {
           ...log,
@@ -104,12 +104,12 @@ export class TransactionService {
         const contractERC20 = new ethers.Contract(
           tokenAddress,
           erc20,
-          this.jsonRpcProviderManager.getCurrentProvider()
+          this.jsonRpcProviderManager.getCurrentProvider(),
         );
 
         const { tokenSymbol, tokenDecimals } = await this.tokenService.getTokenDetails(
           tokenAddress,
-          contractERC20
+          contractERC20,
         );
 
         const parsedLog: LogDescription | null = interfaceERC20.parseLog(logCopy);
@@ -118,14 +118,14 @@ export class TransactionService {
         if (parsedLog?.name && parsedLog.name === "Transfer") {
           const transferTx: TransferTransaction = {
             blockNumber: transaction.blockNumber,
-            timestamp: parseInt(transaction?.timeStamp.toString()),
+            timestamp: parseInt(transaction?.timeStamp.toString(), 10),
             tokenAdress: tokenAddress,
             from: parsedLog.args[0],
             to: parsedLog.args[1],
             amount: parseFloat(
               Number(
-                BigIntDivisionForAmount(parsedLog.args[2] as bigint, BigInt(10) ** tokenDecimals)
-              ).toFixed(3)
+                BigIntDivisionForAmount(parsedLog.args[2] as bigint, BigInt(10) ** tokenDecimals),
+              ).toFixed(3),
             ),
             symbol: tokenSymbol,
             status: this.determineTransactionType(address, parsedLog),
@@ -135,11 +135,10 @@ export class TransactionService {
       }
       return this.aggregateTransferTransactions(transferTransactionSummary);
     } catch (e: any) {
-      if (e.code == "BUFFER_OVERRUN") {
+      if (e.code === "BUFFER_OVERRUN") {
         return [];
       } else {
-        this.logger.error(`Error processing transaction: ${transaction.hash} ${e}`);
-        console.log(e);
+        this.logger.error("Transaction processing failed");
       }
       return [];
     }
@@ -150,31 +149,27 @@ export class TransactionService {
    * Is same token, from AND no status (could no determine where it goes) aggregate
    */
   aggregateTransferTransactions(
-    transferTransactionSummary: TransferTransaction[]
+    transferTransactionSummary: TransferTransaction[],
   ): TransferTransaction[] {
-    let aggregatedTransactions: any = {};
-    transferTransactionSummary.forEach((tx) => {
-      let key1 = `${tx.tokenAdress}-${tx.from}-${tx.status}`;
-      let key2 = `${tx.tokenAdress}-${tx.from}-${tx.to}`;
+    const aggregatedTransactions = new Map<string, TransferTransaction>();
+    for (const tx of transferTransactionSummary) {
+      const key1 = `${tx.tokenAdress}-${tx.from}-${tx.status}`;
+      const key2 = `${tx.tokenAdress}-${tx.from}-${tx.to}`;
+      const key = tx.status ? key2 : key1;
+      const aggregatedTransaction = aggregatedTransactions.get(key);
 
-      if (tx.status) {
-        if (!aggregatedTransactions[key2]) {
-          aggregatedTransactions[key2] = { ...tx, amount: 0 };
-        }
-        aggregatedTransactions[key2].amount += tx.amount;
+      if (aggregatedTransaction) {
+        aggregatedTransaction.amount += tx.amount;
       } else {
-        if (!aggregatedTransactions[key1]) {
-          aggregatedTransactions[key1] = { ...tx, amount: 0 };
-        }
-        aggregatedTransactions[key1].amount += tx.amount;
+        aggregatedTransactions.set(key, { ...tx });
       }
-    });
-    return Object.values(aggregatedTransactions);
+    }
+    return [...aggregatedTransactions.values()];
   }
 
   async findMainTokenTradedOnTransaction(
     transferTxSummary: TransferTransaction[],
-    walletAddress: string
+    walletAddress: string,
   ): Promise<{
     updatedTransferTransactionSummary: TransferTransaction[];
     tokenHistory: TokenHistory;
@@ -200,14 +195,9 @@ export class TransactionService {
             tokenAddress: transferTx.tokenAdress,
             walletAddress: walletAddress,
           });
-        } catch (error: any) {
-          console.error(`Error fetching token history for ${transferTx.tokenAdress}:`, error);
+        } catch {
           // Handle specific token history fetch errors or rethrow if necessary
-          throw new CustomError(
-            `Failed to fetch token history for token address ${transferTx.tokenAdress}`,
-            "CAN'T_FIND_MAIN_TOKEN",
-            error
-          );
+          throw new CustomError("Failed to fetch token history", "CAN'T_FIND_MAIN_TOKEN");
         }
 
         // Determines the current transaction to work.
@@ -240,23 +230,18 @@ export class TransactionService {
           tokenHistory.performanceUSD = 0;
           tokenHistory.pair = "";
           tokenPath = fallbackTransfer.status;
-          let index = transferTxSummary.indexOf(fallbackTransfer);
+          const index = transferTxSummary.indexOf(fallbackTransfer);
           if (index > -1) {
             transferTxSummary.splice(index, 1);
           }
-        } catch (error) {
-          console.error("Error creating fallback token history:", error);
-          throw new CustomError(
-            "Failed to create fallback token history.",
-            "CAN'T_FIND_MAIN_TOKEN",
-            error
-          );
+        } catch {
+          throw new CustomError("Failed to create fallback token history", "CAN'T_FIND_MAIN_TOKEN");
         }
       }
 
       if (!tokenHistory) {
         throw new CustomError(
-          `Can't create token history for transaction at block ${transferTxSummary[0].blockNumber}`
+          `Can't create token history for transaction at block ${transferTxSummary[0].blockNumber}`,
         );
       }
 
@@ -272,7 +257,7 @@ export class TransactionService {
         throw new CustomError(
           "Failed to find main token traded in the transaction.",
           "CAN'T_FIND_MAIN_TOKEN",
-          error
+          error,
         );
       }
     }

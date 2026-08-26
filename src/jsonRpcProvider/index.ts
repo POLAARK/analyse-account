@@ -1,2 +1,2 @@
-export * from './IJsonRpcProviderManager';
-export * from './JsonRpcProviderManager';
+export * from "./IJsonRpcProviderManager";
+export * from "./JsonRpcProviderManager";

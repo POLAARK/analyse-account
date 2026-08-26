@@ -1,14 +1,15 @@
 import { REST, Routes } from "discord.js";
 import { config } from "dotenv";
 import fs from "node:fs";
-import path, { dirname } from "node:path";
-import { fileURLToPath } from "node:url";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import "reflect-metadata";
 import { Logger } from "./logger/Logger";
 
 const logger = new Logger();
+const dirname = path.dirname(fileURLToPath(import.meta.url));
 
-config({ path: "src/../.env" });
+config({ path: path.join(dirname, "../.env"), quiet: true });
 const token = process.env.DISCORD_TOKEN;
 const clientId = process.env.CLIENT_ID;
 const guildId = process.env.GUILD_ID;
@@ -24,20 +25,20 @@ if (!guildId) {
 
 const commands = [];
 // Grab all the command folders from the commands directory you created earlier
-const foldersPath = path.join(__dirname, "./discord");
+const foldersPath = path.join(dirname, "discord");
 
 const commandFiles = fs.readdirSync(foldersPath).filter((file) => file.endsWith(".ts"));
 
 for (const file of commandFiles) {
   const filePath = path.join(foldersPath, file);
   logger.info(filePath);
-  const command = await import(filePath);
+  const command = await import(pathToFileURL(filePath).href);
   // logger.info(command);
   if ("data" in command.default && "execute" in command.default) {
     commands.push(command.default.data.toJSON());
   } else {
     logger.info(
-      `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`
+      `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`,
     );
   }
 }
@@ -56,8 +57,8 @@ const rest = new REST().setToken(token);
     });
     // .catch(() => {});
     logger.info(`Successfully reloaded ${data.length} application (/) commands.`);
-  } catch (error) {
-    // And of course, make sure you catch and log any errors!
-    console.error(error);
+  } catch {
+    logger.error("Discord command deployment failed");
+    process.exitCode = 1;
   }
 })();

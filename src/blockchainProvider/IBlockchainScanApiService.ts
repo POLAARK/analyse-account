@@ -5,20 +5,20 @@ export interface IBlockchainScanApiService {
     address: string,
     startBlock: number,
     endBlock?: number,
-    offset?: number
+    offset?: number,
   ): Promise<BlockchainTransaction[]>;
 
   constructGlobalTransactionHistory(
     address: string,
     startBlock: number,
     endBlock?: number,
-    offset?: number
+    offset?: number,
   ): Promise<BlockchainTransaction[]>;
 
   getInternalTransactions(
     address: string,
     startBlock: number,
-    endBlock: number,
-    offset: number
+    endBlock?: number,
+    offset?: number,
   ): Promise<BlockchainTransaction[]>;
 }

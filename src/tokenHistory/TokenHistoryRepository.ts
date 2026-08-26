@@ -46,7 +46,7 @@ export class TokenHistoryRepository
           throw new CustomError(
             ERROR_SAVING_ENTITY_IN_DATABASE,
             `Error saving or updating entity in DB after ${attempts} attempts`,
-            err
+            err,
           );
         }
       }
@@ -55,7 +55,7 @@ export class TokenHistoryRepository
     throw new CustomError(
       ERROR_SAVING_ENTITY_IN_DATABASE,
       `Error saving or updating entity in DB after ${maxRetries} attempts`,
-      new Error("Maximum retries reached")
+      new Error("Maximum retries reached"),
     );
   }
 

@@ -30,7 +30,7 @@ import {
 } from "../wallet";
 import SERVICE_IDENTIFIER from "./identifiers";
 
-let container = new Container();
+const container = new Container();
 container.bind<IEthOhlcRepository>(SERVICE_IDENTIFIER.EthOhlcRepository).to(EthOhlcRepository);
 container.bind<IEthOhlcService>(SERVICE_IDENTIFIER.EthOhlcService).to(EthOhlService);
 container

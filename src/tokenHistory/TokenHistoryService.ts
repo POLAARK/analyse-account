@@ -1,4 +1,3 @@
-import { config } from "dotenv";
 import { inject, injectable } from "inversify";
 import { type IEthOhlcService } from "../ethOhlc";
 import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
@@ -10,8 +9,6 @@ import { type ITransactionService } from "../transaction/ITransactionService";
 
 import { OneContainsStrings } from "../utils/stringUtils";
 import { type ITokenHistoryService } from "./ITokenHistoryService";
-
-config({ path: "src/../.env" });
 
 @injectable()
 export class TokenHistoryService implements ITokenHistoryService {
@@ -25,7 +22,7 @@ export class TokenHistoryService implements ITokenHistoryService {
     @inject(SERVICE_IDENTIFIER.TransactionService)
     private readonly transactionService: ITransactionService,
     @inject(SERVICE_IDENTIFIER.TokenHistoryRepository)
-    private readonly tokenHistoryRepository: ITokenHistoryRepository
+    private readonly tokenHistoryRepository: ITokenHistoryRepository,
   ) {}
 
   /**
@@ -47,11 +44,11 @@ export class TokenHistoryService implements ITokenHistoryService {
     }: {
       transferTxSummary: TransferTransaction[];
     },
-    address: string
+    address: string,
   ): Promise<void> {
     const result = await this.transactionService.findMainTokenTradedOnTransaction(
       transferTxSummary,
-      address
+      address,
     );
 
     if (!result.tokenHistory) return;
@@ -61,11 +58,11 @@ export class TokenHistoryService implements ITokenHistoryService {
     const tokenHistory: TokenHistory = result.tokenHistory;
     const tokenPath: "IN" | "OUT" | undefined = result.tokenPath;
 
-    if (tokenHistory.tokenAddress == "") return;
+    if (tokenHistory.tokenAddress === "") return;
 
     const isTransferStatus = await this.updateTokenHistoryBasedOnPairType(
       updatedTransferTransactionSummary,
-      tokenHistory
+      tokenHistory,
     );
 
     // If we don't have any transfer status in all the transaction
@@ -75,13 +72,12 @@ export class TokenHistoryService implements ITokenHistoryService {
       await this.processFallbackTransfers(
         updatedTransferTransactionSummary,
         tokenHistory,
-        tokenPath
+        tokenPath,
       );
     }
     try {
       await this.tokenHistoryRepository.saveOrUpdateTokenHistory(tokenHistory, 3);
-    } catch (err) {
-      console.log(err);
+    } catch {
       throw Error("Error saving token History");
     }
     return;
@@ -98,18 +94,18 @@ export class TokenHistoryService implements ITokenHistoryService {
    */
   private async updateTokenHistoryBasedOnPairType(
     updatedTransferTransactionSummary: TransferTransaction[],
-    tokenHistory: TokenHistory
+    tokenHistory: TokenHistory,
   ): Promise<boolean> {
     let isTransferStatus = false; // Do we have transfer and we know the direction of the said transfer or don't we.
-    for (let transfer of updatedTransferTransactionSummary) {
+    for (const transfer of updatedTransferTransactionSummary) {
       if (transfer?.status) {
         isTransferStatus = true;
         const pairType = OneContainsStrings(transfer.symbol, ["usd"])
           ? "USD"
           : OneContainsStrings(transfer.symbol, ["eth"])
-          ? "ETH"
-          : null;
-        pairType ? (tokenHistory.pair = pairType) : "";
+            ? "ETH"
+            : null;
+        if (pairType) tokenHistory.pair = pairType;
 
         if (pairType === "ETH") {
           await this.updateTokenHistoryForEthPair(transfer, tokenHistory);
@@ -124,9 +120,9 @@ export class TokenHistoryService implements ITokenHistoryService {
   private async processFallbackTransfers(
     transferTxSummary: TransferTransaction[],
     tokenHistory: TokenHistory,
-    tokenPath: "IN" | "OUT" | undefined
+    tokenPath: "IN" | "OUT" | undefined,
   ) {
-    for (let transfer of transferTxSummary) {
+    for (const transfer of transferTxSummary) {
       if (!transfer?.status && tokenHistory.tokenAddress !== transfer.tokenAdress) {
         // WE HAVE TO MAKE SURE IT'S WETH SO WE ARE GOING TO DO AND =/= from token
         // BUT IT CAN BE WHATEVER SO, WE HAVE TO DO, == WETH adrr (in db).
@@ -154,29 +150,29 @@ export class TokenHistoryService implements ITokenHistoryService {
 
   private async updateTokenHistoryForEthPair(
     transferTx: TransferTransaction,
-    tokenHistory: TokenHistory
+    tokenHistory: TokenHistory,
   ) {
-    let amount = Number(transferTx.amount);
+    const amount = Number(transferTx.amount);
     if (transferTx.status === "IN") {
       tokenHistory.EthGained += amount;
       tokenHistory.performanceUSD += await this.ethOhlcService.getETHtoUSD(
         amount,
-        transferTx.timestamp
+        transferTx.timestamp,
       );
     } else if (transferTx.status === "OUT") {
       tokenHistory.EthSpent += amount;
       tokenHistory.performanceUSD -= await this.ethOhlcService.getETHtoUSD(
         amount,
-        transferTx.timestamp
+        transferTx.timestamp,
       );
     }
   }
 
   private updateTokenHistoryForUsdPair(
     transferTx: TransferTransaction,
-    tokenHistory: TokenHistory
+    tokenHistory: TokenHistory,
   ) {
-    let amount = Number(transferTx.amount);
+    const amount = Number(transferTx.amount);
     if (transferTx.status === "IN") {
       tokenHistory.USDGained += amount;
       tokenHistory.performanceUSD += amount;

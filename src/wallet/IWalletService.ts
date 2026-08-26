@@ -5,7 +5,7 @@ export interface IWalletService {
   createWalletTradingHistory(
     address: string,
     timestamp: number,
-    concurrent?: boolean
+    concurrent?: boolean,
   ): Promise<void>;
   updateWalletSummary(wallet: Wallet): Promise<void>;
 }

@@ -15,34 +15,21 @@ export class Logger implements ILogger {
       format: combine(...formatArr),
       transports: [new winston.transports.Console()],
     });
-    // this.logger = createLogger({
-    //   level: "info",
-    //   format: format.combine(
-    //     format.colorize(),
-    //     format.timestamp(),
-    //     format.printf(({ timestamp, level, message, ...meta }) => {
-    //       return `${timestamp} [${level}]: ${message} ${
-    //         meta && Object.keys(meta).length ? JSON.stringify(meta) : ""
-    //       }`;
-    //     })
-    //   ),
-    //   transports: [new transports.Console(), new transports.File({ filename: "logs/app.log" })],
-    // });
   }
 
-  info(message: any, meta?: any): void {
+  info(message: string, meta?: unknown): void {
     this.logger.info(message, meta);
   }
 
-  warn(message: any, meta?: any): void {
+  warn(message: string, meta?: unknown): void {
     this.logger.warn(message, meta);
   }
 
-  error(message: any, meta?: any): void {
+  error(message: string, meta?: unknown): void {
     this.logger.error(message, meta);
   }
 
-  debug(message: any, meta?: any): void {
+  debug(message: string, meta?: unknown): void {
     this.logger.debug(message, meta);
   }
 }

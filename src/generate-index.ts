@@ -1,5 +1,5 @@
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 
 const directories = [
   "src/constants",
@@ -9,26 +9,34 @@ const directories = [
   "src/logger",
   "src/token",
   "src/tokenHistory",
-  "src/jsonRpcProvider",
   "src/transaction",
   "src/utils",
   "src/blockchainProvider",
   "src/wallet",
 ];
+const checkOnly = process.argv.includes("--check");
 
 directories.forEach((directory) => {
   const files = fs
     .readdirSync(directory)
-    .filter((file) => file.endsWith(".ts") && file !== "index.ts");
+    .filter((file) => file.endsWith(".ts") && file !== "index.ts")
+    .sort();
 
   const exports = files
     .map((file) => {
-      console.log(file);
       const importPath = `./${file.replace(".ts", "")}`;
-      return `export * from '${importPath}';`;
+      return `export * from "${importPath}";`;
     })
     .join("\n");
 
-  fs.writeFileSync(path.join(directory, "index.ts"), exports, "utf8");
-  console.log(`Generated index.ts for ${directory}`);
+  const indexPath = path.join(directory, "index.ts");
+  const expected = `${exports}\n`;
+  if (checkOnly) {
+    if (!fs.existsSync(indexPath) || fs.readFileSync(indexPath, "utf8") !== expected) {
+      console.error(`${indexPath} is stale; run npm run generate:index`);
+      process.exitCode = 1;
+    }
+  } else {
+    fs.writeFileSync(indexPath, expected, "utf8");
+  }
 });

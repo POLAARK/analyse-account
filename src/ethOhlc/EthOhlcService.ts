@@ -1,4 +1,3 @@
-import { appDataSource } from "../app.js";
 import { ERROR_FETCHING_DATA, ERROR_SAVING_ENTITY_IN_DATABASE } from "../constants/errors";
 import { CustomError } from "../error/customError";
 import { type IEthOhlcRepository } from "../ethOhlc";
@@ -8,6 +7,7 @@ import { type ILogger } from "../logger";
 import { EthOhlc } from ".";
 import { type IEthOhlcService } from "./IEthOhlcService";
 import { PerformanceMeasurer } from "../performance/PerformanceMeasurer";
+import { unixMillisecondsToSeconds } from "../utils/time";
 
 const MAX_RECORDS_PER_REQUEST = 2500; // Assuming this is your limit
 const SECONDS_PER_MINUTE = 60; // 60 seconds in a minute
@@ -18,10 +18,8 @@ export class EthOhlService implements IEthOhlcService {
     @inject(SERVICE_IDENTIFIER.EthOhlcRepository)
     private readonly ethOhlcRepository: IEthOhlcRepository,
     @inject(SERVICE_IDENTIFIER.Logger)
-    private readonly logger: ILogger
-  ) {
-    appDataSource;
-  }
+    private readonly logger: ILogger,
+  ) {}
 
   async getETHtoUSD(valueInETH: number, timestamp: number) {
     const perf = new PerformanceMeasurer();
@@ -37,14 +35,14 @@ export class EthOhlService implements IEthOhlcService {
     tokenAddress: string,
     poolAddress: string,
     startTimestamp?: number,
-    endTimestamp?: number
+    endTimestamp?: number,
   ): Promise<void> {
     const syveKey = process.env.SYVE_API_KEY;
 
     let current_start = startTimestamp
       ? startTimestamp
       : await this.ethOhlcRepository.findLastRecordTimestamp();
-    const current_end = endTimestamp ? endTimestamp : new Date().getTime();
+    const current_end = endTimestamp ?? unixMillisecondsToSeconds(Date.now());
 
     const base_params = {
       key: syveKey,
@@ -58,7 +56,7 @@ export class EthOhlService implements IEthOhlcService {
     while (current_start < current_end) {
       const next_end = Math.min(
         current_start + MAX_RECORDS_PER_REQUEST * SECONDS_PER_MINUTE,
-        current_end
+        current_end,
       );
       let alreadySaved = false;
       const url = "https://api.syve.ai/v1/price/historical/ohlc";
@@ -69,7 +67,7 @@ export class EthOhlService implements IEthOhlcService {
       };
 
       const response = await this.fetchDataWithParams(url, params);
-      const data = response["data"];
+      const data = response.data;
 
       for (const arrElem of data) {
         try {
@@ -89,7 +87,7 @@ export class EthOhlService implements IEthOhlcService {
           throw new CustomError(
             ERROR_SAVING_ENTITY_IN_DATABASE,
             `can't save ETHohlc in database for entry ${arrElem.timestamp_open}`,
-            error
+            error,
           );
         }
       }
@@ -113,8 +111,8 @@ export class EthOhlService implements IEthOhlcService {
         throw new Error(`API request failed with status code ${response.status}`);
       }
       return response.json();
-    } catch (error) {
-      this.logger.error("Error fetching data:", error);
+    } catch {
+      this.logger.error("OHLC request failed");
       throw new CustomError(ERROR_FETCHING_DATA, `Error fetching ohlc data using syve Ai`);
     }
   }

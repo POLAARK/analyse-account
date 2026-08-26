@@ -1,8 +1,6 @@
-import { EthOhlc } from "../ethOhlc/EthOhlc";
+import { EthOhlc } from "../ethOhlc/ETHohlc";
 import { TypeOrmRepository } from "../genericRepository/TypeOrmRepository";
-import { DataSource } from "typeorm";
-import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
-import { inject, injectable } from "inversify";
+import { injectable } from "inversify";
 import { type IEthOhlcRepository } from "./IEthOhlcRepository";
 import { CustomError } from "~/error/customError";
 

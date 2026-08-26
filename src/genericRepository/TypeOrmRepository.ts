@@ -1,8 +1,5 @@
 import { injectable, unmanaged } from "inversify";
-import { container } from "../ioc_container/container";
-import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
 import {
-  DataSource,
   type EntityTarget,
   type FindManyOptions,
   type FindOptionsWhere,
@@ -10,14 +7,13 @@ import {
   Repository,
 } from "typeorm";
 import { type IGenericRepository } from "./IGenericRepository";
-import { CustomError } from "~/error/customError";
-import { appDataSource } from "~/app";
+import { getAppDataSource } from "~/dataSource";
 
 @injectable()
 export class TypeOrmRepository<T extends ObjectLiteral> implements IGenericRepository<T> {
   repository: Repository<T>;
   constructor(@unmanaged() target: EntityTarget<T>) {
-    this.repository = new Repository(target, appDataSource.createEntityManager());
+    this.repository = getAppDataSource().getRepository(target);
   }
 
   async save(entity: T): Promise<T> {
@@ -25,12 +21,7 @@ export class TypeOrmRepository<T extends ObjectLiteral> implements IGenericRepos
   }
 
   async findOneBy(whereOptions: FindOptionsWhere<T> | FindOptionsWhere<T>[]): Promise<T | null> {
-    const res = await this.repository.findOneBy(whereOptions);
-    // const entityClass = (this.repository.target as any).entityName;
-    // if (!res) {
-    //   throw new CustomError(`Can't find requested entity ${entityClass}`);
-    // }
-    return res;
+    return await this.repository.findOneBy(whereOptions);
   }
 
   async findAll(): Promise<T[]> {

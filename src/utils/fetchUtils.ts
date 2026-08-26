@@ -1,13 +1,12 @@
-import fs from "fs";
+import fs from "node:fs";
 import { type ILogger } from "../logger";
-import fetch from "node-fetch";
 import puppeteer, { Page } from "puppeteer";
 
-export const fetchhttpJsonPuppeteer = async function (
+export const fetchhttpJsonPuppeteer = async (
   url: string,
   jsonRequestUrl: string,
-  logger: ILogger
-): Promise<any> {
+  logger: ILogger,
+): Promise<any> => {
   const browser = await puppeteer.launch({ headless: false });
   const page = await browser.newPage();
   // Enable request interception
@@ -26,7 +25,7 @@ export const fetchhttpJsonPuppeteer = async function (
       try {
         const content = await response.json();
         return content;
-      } catch (err) {
+      } catch (_err) {
         logger.info(" Pref light request Erreur ");
       }
     }
@@ -39,13 +38,12 @@ export const fetchhttpJsonPuppeteer = async function (
   // await browser.close();
 };
 
-export const fetchhttpJsonPuppeteerTokenAnalysor = async function (
+export const fetchhttpJsonPuppeteerTokenAnalysor = async (
   url: string,
   jsonRequestUrl: string,
   logger: ILogger,
-  page: Page
-): Promise<any> {
-  const divSelector = `div[data-id="0xca3f508b8e4dd382ee878a314789373d80a5190a"][data-name="BIFI"][data-token-chain="bsc"]`;
+  page: Page,
+): Promise<any> => {
   await page.setRequestInterception(true);
 
   // Listen for 'response' events
@@ -58,7 +56,7 @@ export const fetchhttpJsonPuppeteerTokenAnalysor = async function (
       try {
         const content = await response.json();
         return content;
-      } catch (err) {
+      } catch (_err) {
         logger.info(" Pref light request Erreur ");
       }
     }
@@ -71,11 +69,11 @@ export const fetchhttpJsonPuppeteerTokenAnalysor = async function (
   // await browser.close();
 };
 
-export const fetchhttpJsonPuppeteerLoadNewPage = async function (
+export const fetchhttpJsonPuppeteerLoadNewPage = async (
   url: string,
   jsonRequestUrl: string,
-  logger: ILogger
-): Promise<any> {
+  logger: ILogger,
+): Promise<any> => {
   // Launch the browser
   const browser = await puppeteer.launch({ headless: true });
   const page = await browser.newPage();
@@ -93,7 +91,7 @@ export const fetchhttpJsonPuppeteerLoadNewPage = async function (
       try {
         const content = await response.json();
         return content;
-      } catch (err) {
+      } catch (_err) {
         logger.info(" Pref light request Erreur ");
       }
     }
@@ -106,48 +104,59 @@ export const fetchhttpJsonPuppeteerLoadNewPage = async function (
   // await browser.close();
 };
 
-export const fetchJsonFile = function (path: string): any {
+export const fetchJsonFile = (path: string): any => {
   const contentFile = fs.readFileSync(path, "utf-8");
   const jsonParse = JSON.parse(contentFile);
 
   return jsonParse;
 };
 
-export const fetchHttp = async function (url: string, header = {}): Promise<string> {
+export const fetchHttp = async (url: string, header = {}): Promise<string> => {
   const response = await fetch(url, header);
   const body = await response.text();
 
   return body;
 };
 
-export const fetchHttpJson = async function (
+export const fetchHttpJson = async <T = unknown>(
   url: string,
   header = {},
-  logger: ILogger
-): Promise<any> {
+  logger: ILogger,
+): Promise<T> => {
   let body: unknown;
   const response = await fetch(url, header);
+
+  if (!response.ok) {
+    logger.info(`HTTP request failed (${response.status})`);
+    throw new HttpResponseError(response.status);
+  }
 
   try {
     body = await response.json();
-  } catch (err) {
-    logger.info(response);
-    let resp: string = await response.text();
-    throw new Error(`Can't generate proper response from ${url}`);
+  } catch (_err) {
+    logger.info(`HTTP response returned invalid JSON (${response.status})`);
+    throw new Error("HTTP response returned invalid JSON");
   }
-  return body;
+  return body as T;
 };
 
-export const fetchHttpJsonHandlingTooManyRequest = async function (
+export class HttpResponseError extends Error {
+  constructor(readonly statusCode: number) {
+    super(`HTTP request failed with status ${statusCode}`);
+    this.name = "HttpResponseError";
+  }
+}
+
+export const fetchHttpJsonHandlingTooManyRequest = async (
   url: string,
   count: number = 0,
   header = {},
-  logger: ILogger
-): Promise<any> {
+  logger: ILogger,
+): Promise<any> => {
   let body: unknown;
   const response = await fetch(url, header);
   let counter: number = count;
-  if (response.statusText == "Too Many Requests") {
+  if (response.statusText === "Too Many Requests") {
     while (counter < 10) {
       counter += 1;
       await new Promise((resolve) => setTimeout(resolve, 60000));
@@ -157,22 +166,21 @@ export const fetchHttpJsonHandlingTooManyRequest = async function (
   }
   try {
     body = await response.json();
-  } catch (err) {
-    logger.info(response);
-    let resp: string = await response.text();
-    throw new Error(`Can't generate proper response from ${url}`);
+  } catch (_err) {
+    logger.info(`HTTP response returned invalid JSON (${response.status})`);
+    throw new Error("HTTP response returned invalid JSON");
   }
   return body;
 };
 
-export const makeDirectory = function (path: string): void {
+export const makeDirectory = (path: string): void => {
   if (!fs.existsSync(path)) fs.mkdirSync(path, { recursive: true });
 };
 
-export const writeFile = function (path: string, data: string): void {
+export const writeFile = (path: string, data: string): void => {
   fs.writeFile(path, data, (err) => {
     if (err) {
-      console.error(err);
+      console.error("Failed to write output file");
       return;
     }
   });
@@ -180,12 +188,12 @@ export const writeFile = function (path: string, data: string): void {
 
 export const isOccurenceInString = function isString(
   firstString: string,
-  secondString: string[] | string
+  secondString: string[] | string,
 ) {
   if (typeof secondString === "string") {
     return firstString.toLowerCase().includes(secondString.toLowerCase());
   } else {
-    for (let str of secondString) {
+    for (const str of secondString) {
       if (firstString.toLowerCase().includes(str.toLowerCase())) {
         return true;
       }

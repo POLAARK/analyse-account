@@ -10,10 +10,16 @@ export class Wallet {
   @Column({ type: "bigint" })
   lastBlockUpdated!: number;
 
-  @OneToMany(() => Transaction, (transaction) => transaction.wallet)
+  @OneToMany(
+    () => Transaction,
+    (transaction) => transaction.wallet,
+  )
   transactions!: Transaction[];
 
-  @OneToMany(() => TokenHistory, (tokenHistory) => tokenHistory.wallet)
+  @OneToMany(
+    () => TokenHistory,
+    (tokenHistory) => tokenHistory.wallet,
+  )
   tokenHistories!: TokenHistory[];
 
   @Column({ type: "float" })

@@ -16,14 +16,13 @@
     "experimentalDecorators": true,
     "verbatimModuleSyntax": true,
     "paths": {
-      "test/*": ["test/*"],
-      "~/*": ["src/*"]
+      "test/*": ["./test/*"],
+      "~/*": ["./src/*"]
     },
     "sourceMap": true,
     "outDir": "dist",
     "typeRoots": ["src/types", "node_modules/@types"],
-    "baseUrl": ".",
-    "rootDir": "./src"
+    "rootDir": "."
   },
   "include": ["src", "test"]
 }

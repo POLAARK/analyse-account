@@ -7,6 +7,6 @@ export interface ITokenHistoryService {
     }: {
       transferTxSummary: TransferTransaction[];
     },
-    address: string
+    address: string,
   ): Promise<void>;
 }

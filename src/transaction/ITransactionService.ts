@@ -6,23 +6,23 @@ import { TokenHistory } from "../tokenHistory";
 export interface ITransactionService {
   determineTransactionType(
     accountAddress: string,
-    parsedLog: LogDescription
+    parsedLog: LogDescription,
   ): "IN" | "OUT" | undefined;
   addTransferTransactionIfValue(
     transaction: Transaction,
     transferTransactionSummary: TransferTransaction[],
-    transactionReceipt: TransactionReceipt
+    transactionReceipt: TransactionReceipt,
   ): void;
   getTransactionTransferSummaryFromLog(
     transaction: Transaction,
-    address: string
+    address: string,
   ): Promise<TransferTransaction[]>;
   aggregateTransferTransactions(
-    transferTransactionSummary: TransferTransaction[]
+    transferTransactionSummary: TransferTransaction[],
   ): TransferTransaction[];
   findMainTokenTradedOnTransaction(
     transferTxSummary: TransferTransaction[],
-    walletAddress: string
+    walletAddress: string,
   ): Promise<{
     updatedTransferTransactionSummary: TransferTransaction[];
     tokenHistory: TokenHistory;

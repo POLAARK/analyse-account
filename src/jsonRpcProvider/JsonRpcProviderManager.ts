@@ -6,21 +6,16 @@ import {
 } from "../constants/errors";
 import { JsonRpcProvider, TransactionReceipt } from "ethers";
 import { CustomError } from "../error/customError";
-import path from "path";
-import { fileURLToPath } from "url";
 import { ConfigObject } from "../config/Config";
 import type { IJsonRpcProviderManager } from "./IJsonRpcProviderManager";
 import { inject, injectable } from "inversify";
 import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
 import type { ILogger } from "../logger";
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 @injectable()
 export class JsonRpcProviderManager implements IJsonRpcProviderManager {
   currentProviderIndex: number;
-  configObject = new ConfigObject(path.join(__dirname, "../config/configFile.json"));
+  configObject = new ConfigObject();
   rpcProviders: { url: string; provider: JsonRpcProvider; callNumber: number }[] = [];
   constructor(@inject(SERVICE_IDENTIFIER.Logger) private readonly logger: ILogger) {
     if (
@@ -32,7 +27,6 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
     const network = this.configObject.rpcConfigs.network;
     for (const url of this.configObject.rpcConfigs.urls) {
       const provider = new JsonRpcProvider(url, network);
-      provider._start();
       this.rpcProviders.push({
         url,
         provider: provider,
@@ -42,31 +36,31 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
     this.currentProviderIndex = 0;
   }
 
-  async callProviderMethod<T>(methodName: string, args: any[], timeout = 1000): Promise<T> {
+  async callProviderMethod<T>(methodName: string, args: unknown[], timeout = 1000): Promise<T> {
     let attempts = 0;
     while (attempts < this.rpcProviders.length) {
       try {
         const provider = this.rpcProviders[this.currentProviderIndex];
         this.logger.info(
-          `Method : ${methodName} called with ${provider.url} for the ${provider.callNumber} time`
+          `Method ${methodName} called with provider ${this.currentProviderIndex} for the ${provider.callNumber} time`,
         );
         this.rpcProviders[this.currentProviderIndex].callNumber += 1;
         const result: T = await this.callProviderMethodWithTimeout<T>(
           provider.provider,
           methodName,
           args,
-          timeout
+          timeout,
         );
         // We have to make sure we have a result
-        if (methodName == "getTransactionReceipt" && !(result as TransactionReceipt).logs) {
+        if (methodName === "getTransactionReceipt" && !(result as TransactionReceipt).logs) {
           throw new Error("No logs for this receipt, retry");
         }
         return result;
       } catch (error) {
-        if (error == `timeout occurred for ${methodName}`) {
+        if (error instanceof ProviderTimeoutError) {
           this.logger.error("TIMEOUT ERROR RETRY");
         } else {
-          this.logger.error(error);
+          this.logger.error(`Provider call failed for ${methodName}`);
         }
         this.currentProviderIndex = (this.currentProviderIndex + 1) % this.rpcProviders.length;
         attempts++;
@@ -79,38 +73,21 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
   async callProviderMethodWithTimeout<T>(
     provider: JsonRpcProvider,
     methodName: string,
-    args: any[],
-    timeout = 3500
+    args: unknown[],
+    timeout = 3500,
   ): Promise<T> {
-    return new Promise((resolve, reject) => {
-      let timeoutTriggered = false;
-      const timer = setTimeout(() => {
-        timeoutTriggered = true;
-        reject(`timeout occurred for ${methodName}`);
-      }, timeout);
+    const method: unknown = provider[methodName as keyof JsonRpcProvider];
+    if (typeof method !== "function") {
+      throw new CustomError(METHOD_DOES_NOT_EXIST, methodName);
+    }
 
-      const method = provider[methodName as keyof JsonRpcProvider] as Function;
-
-      if (!method) {
-        clearTimeout(timer);
-        reject(new CustomError(METHOD_DOES_NOT_EXIST, `${methodName}`));
-      }
-
-      method
-        .apply(provider, args)
-        .then((result: T) => {
-          if (!timeoutTriggered) {
-            clearTimeout(timer);
-            resolve(result);
-          }
-        })
-        .catch((error: any) => {
-          if (!timeoutTriggered) {
-            clearTimeout(timer);
-            console.log(error);
-            reject(new CustomError(ERROR_EXECUTING_RPC_REQUEST, `${methodName}`, error));
-          }
-        });
+    return new Promise<T>((resolve, reject) => {
+      const timer = setTimeout(() => reject(new ProviderTimeoutError(methodName)), timeout);
+      const providerMethod = method as (...methodArguments: unknown[]) => T | PromiseLike<T>;
+      Promise.resolve(providerMethod.apply(provider, args))
+        .then(resolve)
+        .catch(() => reject(new CustomError(ERROR_EXECUTING_RPC_REQUEST, methodName)))
+        .finally(() => clearTimeout(timer));
     });
   }
 
@@ -120,5 +97,12 @@ export class JsonRpcProviderManager implements IJsonRpcProviderManager {
 
   private delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+}
+
+class ProviderTimeoutError extends Error {
+  constructor(methodName: string) {
+    super(`Timeout occurred for ${methodName}`);
+    this.name = "ProviderTimeoutError";
   }
 }

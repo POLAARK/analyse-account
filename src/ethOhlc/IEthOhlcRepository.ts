@@ -1,4 +1,4 @@
-import { EthOhlc } from "../ethOhlc/EthOhlc";
+import { EthOhlc } from "../ethOhlc/ETHohlc";
 import { type IGenericRepository } from "../genericRepository/IGenericRepository";
 
 export interface IEthOhlcRepository extends IGenericRepository<EthOhlc> {

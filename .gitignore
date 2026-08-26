@@ -1,6 +1,16 @@
-node_modules
-dist
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
 .env
+.env.*
+!.env.example
+.opencode/
+.DS_Store
+.venv/
+__pycache__/
+*.py[cod]
+src/config/configFile.json
 data/wallets/*
 !data/wallets/0x.json
 data/histories/*
@@ -8,7 +18,5 @@ data/histories/*
 transactionsResults.json
 downloadEthPrice/config.txt
 data/total_ohlc_ETH.json
-src/modules/config/configFile.json
-src/ormconfig.ts
 logs/*
-logs/app.log
+*Data.json

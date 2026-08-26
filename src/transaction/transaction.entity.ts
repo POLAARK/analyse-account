@@ -18,7 +18,7 @@ export interface TransferTransaction {
   blockNumber: number;
   timestamp: number;
   tokenAdress: string;
-  amount: BigInt | number;
+  amount: number;
   from: string;
   to: string;
   symbol: string;

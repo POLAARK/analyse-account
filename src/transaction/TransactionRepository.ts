@@ -14,7 +14,7 @@ export class TransactionRepository
   }
   async findTransactionsByTimestamp(
     walletAddress: string,
-    timestamp: number
+    timestamp: number,
   ): Promise<Transaction[]> {
     const transactions = await this.repository.find({
       where: { wallet: { address: walletAddress }, timeStamp: MoreThan(timestamp) },

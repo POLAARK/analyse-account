@@ -1,54 +1,56 @@
 import { ConfigObject } from "../config/Config";
-import { AttachmentBuilder, CommandInteraction, SlashCommandBuilder } from "discord.js";
+import {
+  AttachmentBuilder,
+  type ChatInputCommandInteraction,
+  SlashCommandBuilder,
+} from "discord.js";
+import { isAddress } from "ethers";
 import type { IEthOhlcService } from "../ethOhlc";
-import * as fs from "fs";
 import { container } from "../ioc_container/container";
 import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
-import path from "path";
-import { fileURLToPath } from "url";
 import type { IWalletRepository, IWalletService } from "../wallet";
 import { TransactionStreamerService } from "../streamer/TransactionStreamerService";
-const filename = fileURLToPath(import.meta.url);
-const dirname = path.dirname(filename);
+
+const DEFAULT_ANALYSIS_PERIOD_SECONDS = (365 * 24 * 60 * 60) / 2;
 
 export default {
   data: new SlashCommandBuilder()
     .setName("analysewallet")
     .setDescription("Analyse a wallet performance")
     .addStringOption((option) =>
-      option.setName("target").setDescription("The wallet to analyse").setRequired(true)
+      option.setName("target").setDescription("The wallet to analyse").setRequired(true),
     )
     .addNumberOption((option) =>
       option
         .setName("timestamp")
         .setDescription("Since when we cant to analyse this wallet timestamp")
-        .setRequired(false)
+        .setRequired(false),
     ),
-  async execute(interaction: CommandInteraction) {
+  async execute(interaction: ChatInputCommandInteraction) {
     const ethOhlcService = container.get<IEthOhlcService>(SERVICE_IDENTIFIER.EthOhlcService);
     const walletRepository = container.get<IWalletRepository>(SERVICE_IDENTIFIER.WalletRepository);
     const walletService = container.get<IWalletService>(SERVICE_IDENTIFIER.WalletService);
     const streamer = container.get(TransactionStreamerService);
 
     const walletAddress = interaction.options.get("target", true).value;
-    if (typeof walletAddress !== "string") {
-      throw new Error("Wallet Address has to be a string");
+    if (typeof walletAddress !== "string" || !isAddress(walletAddress)) {
+      throw new Error("Wallet address must be a valid EVM address");
     }
-    const timestampValue = interaction.options.get("timestamp")?.value;
-    const timestamp = Number(
-      timestampValue
-        ? timestampValue
-        : Date.now() / 1000 - 365 * 24 * 60 * 60 + (365 * 24 * 60 * 60) / 2
-    );
+    const timestamp =
+      interaction.options.getNumber("timestamp") ??
+      Math.trunc(Date.now() / 1000 - DEFAULT_ANALYSIS_PERIOD_SECONDS);
+    if (!Number.isSafeInteger(timestamp) || timestamp < 0) {
+      throw new Error("Analysis timestamp must be non-negative Unix seconds");
+    }
     await interaction.reply("Analyse started");
 
-    const configObject = new ConfigObject(path.join(dirname, "../config/configFile.json"));
+    const configObject = new ConfigObject();
     if (!configObject.rpcConfigs) {
       throw new Error("Invalid config: rpcConfigs is required");
     }
     await ethOhlcService.getEthOhlc(
       configObject.rpcConfigs.tokenAddress,
-      configObject.rpcConfigs.poolAddress
+      configObject.rpcConfigs.poolAddress,
     );
     await streamer.setWalletList([walletAddress]);
     await streamer.buildWalletTransactionHistory();
@@ -56,32 +58,21 @@ export default {
 
     const wallet = await walletRepository.find({
       where: { address: walletAddress },
-      relations: ["tokenHistories"],
+      relations: { tokenHistories: true },
     });
 
-    if (!wallet) {
+    if (wallet.length === 0) {
       throw Error("No wallet created for this walletAddress");
     }
 
     const walletData = JSON.stringify(wallet[0], null, 2);
-
-    const filepath = path.join(dirname, `${walletAddress}Data.json`);
-
-    // Write data to the temp file
-    fs.writeFileSync(filepath, walletData);
-
-    // Create the attachment
-    const attachment = new AttachmentBuilder(filepath, {
+    const attachment = new AttachmentBuilder(Buffer.from(walletData), {
       name: `${walletAddress}Data.json`,
     });
 
-    // Send the attachment in Discord
     await interaction.editReply({
       content: "Here is the analysis:",
       files: [attachment],
     });
-
-    // Delete the temp file
-    fs.unlinkSync(filepath);
   },
 };

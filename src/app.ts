@@ -1,287 +1,166 @@
-// import { Client, Collection, Events, GatewayIntentBits, TextChannel } from "discord.js";
-// import dotenv from "dotenv";
-// import * as fs from "fs";
-// import path from "path";
-// import "reflect-metadata";
-// import { ormConfig } from "./ormconfig";
-// import { DataSource } from "typeorm";
-// import { Logger } from "./logger";
-// import type { MysqlConnectionOptions } from "typeorm/driver/mysql/MysqlConnectionOptions.js";
-// import { fileURLToPath } from "url";
-
-// const __filename = fileURLToPath(import.meta.url);
-// const __dirname = path.dirname(__filename);
-// dotenv.config({ path: __dirname + "/../.env" });
-
-// const logger = new Logger();
-// export const appDataSource = new DataSource({
-//   logging: true,
-//   ...(ormConfig as MysqlConnectionOptions),
-// });
-// appDataSource
-//   .initialize()
-//   .then(async () => {
-//     await appDataSource.synchronize().catch((error) => {
-//       logger.error("Synchronize error : ");
-//       logger.error(error);
-//     });
-
-//     const token: string | undefined = process.env.DISCORD_TOKEN;
-//     if (!token) {
-//       logger.error("No discord Token for the app");
-//       throw new Error("No discord token provided ");
-//     }
-//     const client: any = new Client({
-//       intents: [
-//         GatewayIntentBits.Guilds,
-//         GatewayIntentBits.GuildMessages,
-//         GatewayIntentBits.MessageContent,
-//         GatewayIntentBits.GuildMessageReactions,
-//       ],
-//     });
-
-//     const channelId = process.env.CHANNEL_ID;
-
-//     client.commands = new Collection();
-
-//     const commandsPath = __dirname + "/discord/";
-//     const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith(".ts"));
-
-//     for (const file of commandFiles) {
-//       const filePath = path.join(commandsPath, file);
-//       const { default: command } = await import(`./discord/${file}`);
-
-//       // Set a new item in the Collection with the key as the command name and the value as the exported module
-//       if ("data" in command && "execute" in command) {
-//         client.commands.set(command.data.name, command);
-//       } else {
-//         logger.info(
-//           `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`
-//         );
-//       }
-//     }
-//     client.on("ready", async () => {
-//       const channel = client.channels.cache.get(channelId);
-//       (channel as TextChannel).send("Connected");
-//     });
-
-//     client.on(Events.InteractionCreate, async (interaction: any) => {
-//       if (!interaction.isChatInputCommand()) {
-//         logger.info(interaction);
-//         return;
-//       }
-//       const command = interaction.client.commands.get(interaction.commandName);
-
-//       if (!command) {
-//         console.error(`No command matching ${interaction.commandName} was found.`);
-//         return;
-//       }
-
-//       try {
-//         await command.execute(interaction);
-//       } catch (error) {
-//         console.error(error);
-//         if (interaction.replied || interaction.deferred) {
-//           await interaction.followUp({
-//             content: "There was an error while executing this command!",
-//             ephemeral: true,
-//           });
-//         } else {
-//           await interaction.reply({
-//             content: "There was an error while executing this command!",
-//             ephemeral: true,
-//           });
-//         }
-//       }
-//     });
-
-//     client.login(token);
-//   })
-//   .catch((error) => {
-//     logger.error("Init error");
-//     console.log(error);
-//     if (error instanceof AggregateError) {
-//       logger.error("AggregateError detected. Details:");
-//       error.errors.forEach((err, index) => {
-//         logger.error(`Error ${index + 1}:`, err);
-//       });
-//     } else {
-//       logger.error(error);
-//     }
-//   });
-
 import {
+  type ChatInputCommandInteraction,
   Client,
   Collection,
   Events,
   GatewayIntentBits,
-  TextChannel,
-  AttachmentBuilder,
+  type InteractionReplyOptions,
+  MessageFlags,
+  type TextChannel,
 } from "discord.js";
 import dotenv from "dotenv";
-import * as fs from "fs";
-import path from "path";
+import { isAddress } from "ethers";
+import * as fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import "reflect-metadata";
-import { ormConfig } from "./ormconfig";
-import { DataSource } from "typeorm";
-import { Logger } from "./logger";
-import { fileURLToPath } from "url";
-import { CommandInteraction } from "discord.js";
-import { container } from "./ioc_container/container";
-import type { IEthOhlcService } from "./ethOhlc";
-import SERVICE_IDENTIFIER from "./ioc_container/identifiers";
-import type { IWalletRepository, IWalletService } from "./wallet";
-import { TransactionStreamerService } from "./streamer/TransactionStreamerService";
-import type { MysqlConnectionOptions } from "typeorm/driver/mysql/MysqlConnectionOptions.js";
 import { ConfigObject } from "./config/Config";
-const filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(filename);
-dotenv.config({ path: path.join(__dirname, "../.env") });
-const token: string | undefined = process.env.DISCORD_TOKEN;
+import { getAppDataSource } from "./dataSource";
+import type { IEthOhlcService } from "./ethOhlc";
+import { container } from "./ioc_container/container";
+import SERVICE_IDENTIFIER from "./ioc_container/identifiers";
+import { Logger } from "./logger";
+import { TransactionStreamerService } from "./streamer/TransactionStreamerService";
+import type { IWalletRepository, IWalletService } from "./wallet";
+import type { RpcConfig } from "./types/config";
 
-if (!token) {
-  console.log("No discord Token for the app");
-  throw new Error("No discord token provided ");
-}
-
+const dirname = path.dirname(fileURLToPath(import.meta.url));
 const logger = new Logger();
 
-export const appDataSource = new DataSource({
-  logging: true,
-  ...(ormConfig as MysqlConnectionOptions),
-});
+async function handleCliMode(
+  walletAddress: string,
+  timestampSeconds: number,
+  rpcConfig: RpcConfig,
+): Promise<void> {
+  const ethOhlcService = container.get<IEthOhlcService>(SERVICE_IDENTIFIER.EthOhlcService);
+  const walletRepository = container.get<IWalletRepository>(SERVICE_IDENTIFIER.WalletRepository);
+  const walletService = container.get<IWalletService>(SERVICE_IDENTIFIER.WalletService);
+  const streamer = container.get(TransactionStreamerService);
 
-// Function to handle CLI mode
-async function handleCliMode(walletAddress: string, timestamp: number) {
+  logger.info(`Starting wallet analysis from ${new Date(timestampSeconds * 1000).toISOString()}`);
+
+  await ethOhlcService.getEthOhlc(rpcConfig.tokenAddress, rpcConfig.poolAddress);
+  streamer.setWalletList([walletAddress]);
+  await streamer.buildWalletTransactionHistory();
+  await walletService.createWalletTradingHistory(walletAddress, timestampSeconds, false);
+
+  const wallet = await walletRepository.find({
+    where: { address: walletAddress },
+    relations: { tokenHistories: true },
+  });
+  console.log(JSON.stringify(wallet, null, 2));
+}
+
+async function runDiscordMode(token: string): Promise<void> {
+  const client = new Client({
+    intents: [GatewayIntentBits.Guilds],
+  });
+  const channelId = process.env.CHANNEL_ID;
+  const commands = new Collection<string, DiscordCommand>();
+
+  const commandsPath = path.join(dirname, "discord");
+  const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith(".ts"));
+  for (const file of commandFiles) {
+    const filePath = path.join(commandsPath, file);
+    const commandModule = (await import(`./discord/${file}`)) as Record<string, unknown>;
+    const command = commandModule.default;
+    if (isDiscordCommand(command)) {
+      commands.set(command.data.name, command);
+    } else {
+      logger.info(`[WARNING] ${filePath} is missing a required data or execute property.`);
+    }
+  }
+
+  client.on("ready", async () => {
+    if (!channelId) return;
+    const channel = client.channels.cache.get(channelId);
+    if (channel) await (channel as TextChannel).send("Connected");
+  });
+
+  client.on(Events.InteractionCreate, async (interaction) => {
+    if (!interaction.isChatInputCommand()) return;
+    const command = commands.get(interaction.commandName);
+    if (!command) {
+      logger.error(`No command matching ${interaction.commandName} was found.`);
+      return;
+    }
+
+    try {
+      await command.execute(interaction);
+    } catch {
+      logger.error("Discord command failed");
+      const response: InteractionReplyOptions = {
+        content: "There was an error while executing this command!",
+        flags: MessageFlags.Ephemeral,
+      };
+      if (interaction.replied || interaction.deferred) await interaction.followUp(response);
+      else await interaction.reply(response);
+    }
+  });
+
+  await client.login(token);
+}
+
+interface DiscordCommand {
+  data: { name: string };
+  execute(interaction: ChatInputCommandInteraction): Promise<void>;
+}
+
+function isDiscordCommand(value: unknown): value is DiscordCommand {
+  if (!value || typeof value !== "object") return false;
+  const candidate = value as { data?: unknown; execute?: unknown };
+  return (
+    !!candidate.data &&
+    typeof candidate.data === "object" &&
+    "name" in candidate.data &&
+    typeof candidate.data.name === "string" &&
+    typeof candidate.execute === "function"
+  );
+}
+
+export async function main(args: string[] = process.argv.slice(2)): Promise<void> {
+  const cliInput = parseCliInput(args);
+  dotenv.config({ path: path.join(dirname, "../.env"), quiet: true });
+  const discordToken = cliInput ? undefined : process.env.DISCORD_TOKEN;
+  if (!cliInput && !discordToken) throw new Error("DISCORD_TOKEN is required in Discord mode");
+
+  const rpcConfig = new ConfigObject().rpcConfigs;
+  if (!rpcConfig) throw new Error("Invalid config: rpcConfigs is required");
+
+  const dataSource = getAppDataSource();
+  await dataSource.initialize();
+
+  if (!cliInput) {
+    await runDiscordMode(discordToken as string);
+    return;
+  }
+
   try {
-    // Get the services and repository from the continaer
-    const ethOhlcService = container.get<IEthOhlcService>(SERVICE_IDENTIFIER.EthOhlcService);
-    // TODO : Repository should not be accessed, we should acces it using the service layer
-    const walletRepository = container.get<IWalletRepository>(SERVICE_IDENTIFIER.WalletRepository);
-    const walletService = container.get<IWalletService>(SERVICE_IDENTIFIER.WalletService);
-    const streamer = container.get(TransactionStreamerService);
-
-    if (typeof walletAddress !== "string") {
-      throw new Error("Wallet Address has to be a string");
-    }
-
-    logger.info(`Starting analysis for: ${walletAddress} from ${new Date(timestamp)}`);
-
-    const configObject = new ConfigObject(path.join(__dirname, "./config/configFile.json"));
-    if (!configObject.rpcConfigs) {
-      throw new Error("Invalid config: rpcConfigs is required");
-    }
-
-    await ethOhlcService.getEthOhlc(
-      configObject.rpcConfigs.tokenAddress,
-      configObject.rpcConfigs.poolAddress
-    );
-    streamer.setWalletList([walletAddress]);
-    // Create the transactionHistory for the wallet
-    await streamer.buildWalletTransactionHistory();
-    // Using the algorithm traduce the transaction history into a trading history
-    await walletService.createWalletTradingHistory(walletAddress, timestamp, false);
-    
-    const wallet = await walletRepository.find({
-      where: { address: walletAddress },
-      relations: ["tokenHistories"],
-    });
-
-    const walletData = JSON.stringify(wallet, null, 2);
-    console.log(walletData);
-  } catch (error) {
-    logger.error("Error during CLI mode execution:");
-    logger.error(error);
+    await handleCliMode(cliInput.walletAddress, cliInput.timestampSeconds, rpcConfig);
+  } finally {
+    await dataSource.destroy();
   }
 }
 
-// Main initialization function
-async function init() {
-  // npm run prod address fromTimestamp --> activate CLI mode
-  if (process.argv.length > 2) {
-    const walletAddress = process.argv[2];
-    const timestamp = process.argv[3]
-      ? parseInt(process.argv[3], 10)
-      : Math.trunc(Date.now() / 1000 - (365 * 24 * 60 * 60) / 2);
-    console.log(walletAddress, timestamp);
-    await handleCliMode(walletAddress, timestamp);
-  } else {
-    // If we don't run using CLI we run it using Discord
-    const client: any = new Client({
-      intents: [
-        GatewayIntentBits.Guilds,
-        GatewayIntentBits.GuildMessages,
-        GatewayIntentBits.MessageContent,
-        GatewayIntentBits.GuildMessageReactions,
-      ],
-    });
+function parseCliInput(args: string[]): { walletAddress: string; timestampSeconds: number } | null {
+  if (args.length === 0) return null;
 
-    const channelId = process.env.CHANNEL_ID;
+  const walletAddress = args[0];
+  if (!isAddress(walletAddress)) throw new Error("Wallet address must be a valid EVM address");
 
-    client.commands = new Collection();
-
-    const commandsPath = __dirname + "/discord/";
-    const commandFiles = fs.readdirSync(commandsPath).filter((file) => file.endsWith(".ts"));
-
-    for (const file of commandFiles) {
-      const filePath = path.join(commandsPath, file);
-      const { default: command } = await import(`./discord/${file}`);
-
-      // Set a new item in the Collection with the key as the command name and the value as the exported module
-      if ("data" in command && "execute" in command) {
-        client.commands.set(command.data.name, command);
-      } else {
-        logger.info(
-          `[WARNING] The command at ${filePath} is missing a required "data" or "execute" property.`
-        );
-      }
-    }
-    client.on("ready", async () => {
-      const channel = client.channels.cache.get(channelId);
-      (channel as TextChannel).send("Connected");
-    });
-
-    client.on(Events.InteractionCreate, async (interaction: any) => {
-      if (!interaction.isChatInputCommand()) {
-        logger.info(interaction);
-        return;
-      }
-      const command = interaction.client.commands.get(interaction.commandName);
-
-      if (!command) {
-        console.error(`No command matching ${interaction.commandName} was found.`);
-        return;
-      }
-
-      try {
-        await command.execute(interaction);
-      } catch (error) {
-        console.error(error);
-        if (interaction.replied || interaction.deferred) {
-          await interaction.followUp({
-            content: "There was an error while executing this command!",
-            ephemeral: true,
-          });
-        } else {
-          await interaction.reply({
-            content: "There was an error while executing this command!",
-            ephemeral: true,
-          });
-        }
-      }
-    });
-
-    client.login(token);
+  const timestampSeconds = args[1]
+    ? Number(args[1])
+    : Math.trunc(Date.now() / 1000 - (365 * 24 * 60 * 60) / 2);
+  if (!Number.isSafeInteger(timestampSeconds) || timestampSeconds < 0) {
+    throw new Error("Analysis timestamp must be non-negative Unix seconds");
   }
+  return { walletAddress, timestampSeconds };
 }
 
-appDataSource.initialize().then(async () => {
-  await appDataSource.synchronize().catch((error: any) => {
-    logger.error("Synchronize error : ");
-    logger.error(error);
+const entryPoint = process.argv[1] ? pathToFileURL(path.resolve(process.argv[1])).href : undefined;
+if (entryPoint === import.meta.url) {
+  void main().catch(() => {
+    logger.error("Initialization failed");
+    process.exitCode = 1;
   });
-  await init().catch((error) => {
-    logger.error("Initialization error:");
-    console.error(error);
-  });
-});
+}

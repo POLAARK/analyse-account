@@ -11,12 +11,12 @@ import { Contract } from "ethers";
 export class TokenService implements ITokenService {
   constructor(
     @inject(SERVICE_IDENTIFIER.TokenRepository) private tokenRepository: ITokenRepository,
-    @inject(SERVICE_IDENTIFIER.Logger) private logger: ILogger
+    @inject(SERVICE_IDENTIFIER.Logger) private logger: ILogger,
   ) {}
 
   async getTokenDetails(
     address: string,
-    contractERC20: Contract
+    contractERC20: Contract,
   ): Promise<{ tokenSymbol: string; tokenDecimals: bigint }> {
     try {
       let token: Token | null = await this.tokenRepository.findOneByAddress(address);
@@ -46,11 +46,9 @@ export class TokenService implements ITokenService {
     } catch (err: any) {
       // Handle errors that may occur during the fetch process
       if (err.code === "CALL_EXCEPTION") {
-        this.logger.warn(
-          `Call exception for token at address ${address} either no decimals nor name`
-        );
+        this.logger.warn("Token does not expose expected metadata");
       } else {
-        this.logger.error(`Error fetching token details for address ${address}: ${err}`);
+        this.logger.error("Token metadata request failed");
       }
 
       // Return default values in case of an error

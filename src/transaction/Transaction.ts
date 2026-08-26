@@ -7,7 +7,10 @@ export class Transaction {
   hash!: string;
 
   @Index()
-  @ManyToOne(() => Wallet, (wallet) => wallet.transactions)
+  @ManyToOne(
+    () => Wallet,
+    (wallet) => wallet.transactions,
+  )
   wallet!: Wallet;
 
   @Column("bigint")

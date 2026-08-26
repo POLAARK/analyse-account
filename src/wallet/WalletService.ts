@@ -2,7 +2,7 @@ import { inject, injectable } from "inversify";
 import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
 import { type ILogger } from "../logger";
 import { type ITokenHistoryRepository, type ITokenHistoryService } from "../tokenHistory";
-import { Transaction, type ITransactionRepository, type ITransactionService } from "../transaction";
+import { Transaction, type ITransactionService } from "../transaction";
 import { type IWalletRepository } from "./IWalletRepository";
 import { Wallet } from "./Wallet";
 import { type IWalletService } from "./IWalletService";
@@ -14,14 +14,12 @@ export class WalletService implements IWalletService {
     @inject(SERVICE_IDENTIFIER.TransactionService)
     private readonly transactionService: ITransactionService,
     @inject(SERVICE_IDENTIFIER.TokenHistoryService)
-    private readonly tokenHistory: ITokenHistoryService,
-    @inject(SERVICE_IDENTIFIER.TokenHistoryService)
     private readonly tokenHistoryService: ITokenHistoryService,
     @inject(SERVICE_IDENTIFIER.Logger) private readonly logger: ILogger,
     @inject(SERVICE_IDENTIFIER.WalletRepository)
     private readonly walletRepository: IWalletRepository,
     @inject(SERVICE_IDENTIFIER.TokenHistoryRepository)
-    private readonly tokenHistoryRepository: ITokenHistoryRepository
+    private readonly tokenHistoryRepository: ITokenHistoryRepository,
   ) {}
   /**
    * Create wallet trading History
@@ -32,23 +30,15 @@ export class WalletService implements IWalletService {
   async createWalletTradingHistory(
     address: string,
     timestamp: number,
-    concurrent = true
+    concurrent = true,
   ): Promise<void> {
-    // Fetch only transactions newer than `timestamp`
-    // const transactions = await this.transactionRepository.findTransactionsByTimestamp(
-    //   address,
-    //   timestamp
-    // );
-    
-    // If we already parsed them and so updated the db for the actual token history
-    // We will cumulate double transfers
     const processTransactions = concurrent
       ? this.processTransactionsConcurrently
       : this.processTransactionsIteratively;
 
     const transactions = await this.transactionService.getTransactionByTimestamp(
       address,
-      timestamp
+      timestamp,
     );
 
     try {
@@ -60,11 +50,8 @@ export class WalletService implements IWalletService {
       await this.updateWalletTimestamps(timestamp, wallet);
       await this.updateWalletSummary(wallet);
       await this.walletRepository.save(wallet);
-      console.log("End update trading repo + wallet Ts + update summary ");
-      return;
-    } catch (error) {
-      this.logger.error(`Error in getAccountTradingHistory: `);
-      this.logger.error(error);
+    } catch {
+      this.logger.error("Error in getAccountTradingHistory");
     }
   }
 
@@ -75,11 +62,10 @@ export class WalletService implements IWalletService {
           await this.transactionService.getTransactionTransferSummaryFromLog(transaction, address);
         return this.tokenHistoryService.updateWalletTokenHistory(
           { transferTxSummary: [...transactionSummary] },
-          address
+          address,
         );
-      } catch (error) {
+      } catch {
         this.logger.error("Error during createTransactionTransferSummary");
-        this.logger.error(error);
       }
     });
 
@@ -91,14 +77,12 @@ export class WalletService implements IWalletService {
       try {
         const transactionSummary =
           await this.transactionService.getTransactionTransferSummaryFromLog(transaction, address);
-        console.log(transactionSummary);
         await this.tokenHistoryService.updateWalletTokenHistory(
           { transferTxSummary: [...transactionSummary] },
-          address
+          address,
         );
-      } catch (error) {
+      } catch {
         this.logger.error("Error during createTransactionTransferSummary");
-        this.logger.error(error);
       }
     }
   }
@@ -121,16 +105,16 @@ export class WalletService implements IWalletService {
       wallet.numberOfTokensTraded = tokenHistories.length;
       wallet.numberOfTxs = tokenHistories.reduce(
         (total, tokenHistory) => total + tokenHistory.numberOfTx,
-        0
+        0,
       );
       wallet.performanceUSD = tokenHistories.reduce(
         (total, tokenHistory) => total + tokenHistory.performanceUSD,
-        0
+        0,
       );
-    } catch (error) {
+    } catch (_error) {
       throw new CustomError(
         "CAN'T_UPDATE_SUMMARY",
-        `can't update wallet summary for ${wallet.address} `
+        `can't update wallet summary for ${wallet.address} `,
       );
     }
   }

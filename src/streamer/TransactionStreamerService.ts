@@ -1,6 +1,5 @@
 import { type IBlockchainScanApiService } from "../blockchainProvider";
 import { ERROR_SAVING_ENTITY_IN_DATABASE } from "../constants/errors";
-import { config } from "dotenv";
 import { CustomError } from "../error/customError";
 import { inject, injectable } from "inversify";
 import SERVICE_IDENTIFIER from "../ioc_container/identifiers";
@@ -9,11 +8,9 @@ import { type ILogger } from "../logger";
 import { Transaction } from "../transaction/Transaction";
 import { Wallet } from "../wallet/Wallet";
 import { type BlockchainTransaction } from "../blockchainProvider/BlockchainTypes";
-import { TokenHistoryService } from "../tokenHistory/TokenHistoryService";
 import { type IWalletRepository } from "../wallet";
 import { type ITransactionRepository } from "../transaction";
 
-config({ path: "src/../.env" });
 @injectable()
 export class TransactionStreamerService {
   walletList: Set<string> | undefined;
@@ -26,7 +23,7 @@ export class TransactionStreamerService {
     @inject(SERVICE_IDENTIFIER.WalletRepository)
     private readonly walletRepository: IWalletRepository,
     @inject(SERVICE_IDENTIFIER.TransactionRepository)
-    private readonly transactionRepository: ITransactionRepository
+    private readonly transactionRepository: ITransactionRepository,
   ) {}
 
   /**
@@ -57,21 +54,15 @@ export class TransactionStreamerService {
       const latest = lastBlock
         ? lastBlock
         : await this.jsonRpcProviderManager.callProviderMethod<number>("getBlockNumber", []);
-      let constStartBlock;
-      for (let walletAddress of this.walletList) {
+      for (const walletAddress of this.walletList) {
         // Check if the file exists and read the last updated block
-        let wallet = new Wallet();
+        let wallet: Wallet | null = null;
         try {
-          const res = await this.walletRepository.findOneBy({ address: walletAddress });
-          if (res) {
-            wallet = res;
-          }
-        } catch (err) {
-          console.log("builtAccountTransactionHistory");
-          console.log(err);
-          if (err == "EntityMetadataNotFoundError") {
-          }
+          wallet = await this.walletRepository.findOneBy({ address: walletAddress });
+        } catch {
+          this.logger.error("Failed to load wallet transaction state");
         }
+        const constStartBlock = wallet ? wallet.lastBlockUpdated + 1 : startBlock;
         if (!wallet) {
           wallet = await this.walletRepository.save({
             address: walletAddress,
@@ -83,15 +74,12 @@ export class TransactionStreamerService {
             lastAnalysisTimestamp: 0,
             startAnalysisTimestamp: 0,
           } as unknown as Wallet);
-          constStartBlock = startBlock;
         }
-
-        constStartBlock = wallet.lastBlockUpdated + 1;
 
         const history = await this.etherscanApiService.constructGlobalTransactionHistory(
           walletAddress,
           constStartBlock,
-          latest
+          latest,
         );
 
         wallet.lastBlockUpdated = latest;
@@ -100,52 +88,58 @@ export class TransactionStreamerService {
       }
     } catch (error) {
       this.logger.error("Error in builtAccountTransactionHistory");
-      this.logger.error(error);
       throw error;
     }
   }
 
   async saveHistoryToDB(history: BlockchainTransaction[], wallet: Wallet) {
     try {
-      let value: number;
       for (const tx of history) {
-        if (tx.isError == "1") {
-        }
-        value = tx.value;
         const transaction = new Transaction();
         transaction.hash = tx.hash;
         transaction.wallet = wallet;
-        transaction.blockNumber = tx.blockNumber;
-        transaction.timeStamp = tx.timeStamp;
+        transaction.blockNumber = parseEtherscanInteger(tx.blockNumber, "blockNumber");
+        transaction.timeStamp = parseEtherscanInteger(tx.timeStamp, "timeStamp");
         transaction.fromAddress = tx.from;
         transaction.toAddress = tx.to;
         transaction.value = tx.value.toString();
-        transaction.gas = tx.gas;
+        transaction.gas = parseEtherscanInteger(tx.gas, "gas");
         transaction.input = tx.input;
         transaction.contractAddress = tx.contractAddress;
 
         await this.transactionRepository.save(transaction);
       }
     } catch (error) {
-      this.logger.error(error);
+      this.logger.error("Failed to save transaction history");
       throw new CustomError(
         ERROR_SAVING_ENTITY_IN_DATABASE,
         "Couldn't save transaction in to db",
-        error
+        error,
       );
     }
   }
 
   addWallets(walletList: string[]) {
     if (!this.walletList) throw new CustomError("Init wallet list before usage");
-    for (let walletAddress of walletList) {
+    for (const walletAddress of walletList) {
       if (this.walletList.has(walletAddress)) {
         throw new Error(
-          "Account already in list, here is the list " + Array.from(this.walletList).toString()
+          `Account already in list, here is the list ${Array.from(this.walletList).toString()}`,
         );
       } else {
         this.walletList.add(walletAddress);
       }
     }
   }
+}
+
+function parseEtherscanInteger(value: string, fieldName: string): number {
+  if (!/^\d+$/.test(value)) {
+    throw new Error(`Etherscan returned an invalid ${fieldName}`);
+  }
+  const parsedValue = Number(value);
+  if (!Number.isSafeInteger(parsedValue)) {
+    throw new Error(`Etherscan returned an unsafe ${fieldName}`);
+  }
+  return parsedValue;
 }

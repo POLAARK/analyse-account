@@ -4,7 +4,7 @@ export interface IEthOhlcService {
     tokenAddress: string,
     poolAddress: string,
     startTimestamp?: number,
-    endTimestamp?: number
+    endTimestamp?: number,
   ): Promise<void>;
   getETHtoUSD(valueInETH: number, timestamp: number): Promise<number>;
 }
