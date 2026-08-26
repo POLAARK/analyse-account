@@ -49,12 +49,12 @@ export class TransactionStreamerService {
 
   async buildWalletTransactionHistory(lastBlock?: number, startBlock: number = 0) {
     if (!this.walletList) throw new CustomError("Init wallet list before usage");
-    try {
-      // TODO, we should get lastBlock by transaction
-      const latest = lastBlock
-        ? lastBlock
-        : await this.jsonRpcProviderManager.callProviderMethod<number>("getBlockNumber", []);
-      for (const walletAddress of this.walletList) {
+    // TODO, we should get lastBlock by transaction
+    const latest = lastBlock
+      ? lastBlock
+      : await this.jsonRpcProviderManager.callProviderMethod<number>("getBlockNumber", []);
+    for (const walletAddress of this.walletList) {
+      try {
         // Check if the file exists and read the last updated block
         let wallet: Wallet | null = null;
         try {
@@ -82,13 +82,19 @@ export class TransactionStreamerService {
           latest,
         );
 
+        // Persist transactions first: the wallet cursor may only advance once the
+        // history is durably saved, otherwise a failed write would skip those blocks.
+        await this.saveHistoryToDB(history, wallet);
         wallet.lastBlockUpdated = latest;
         await this.walletRepository.save(wallet);
-        await this.saveHistoryToDB(history, wallet);
+      } catch (error) {
+        this.logger.error("Failed to build wallet transaction history");
+        throw new CustomError(
+          "Error building wallet transaction history",
+          `Failed to ingest transaction history for wallet ${walletAddress}`,
+          error,
+        );
       }
-    } catch (error) {
-      this.logger.error("Error in builtAccountTransactionHistory");
-      throw error;
     }
   }
 
