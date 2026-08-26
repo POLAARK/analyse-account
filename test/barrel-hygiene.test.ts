@@ -11,6 +11,8 @@ const deletedExports = [
   "makeDirectory",
   "writeFile",
   "isOccurenceInString",
+  "fetchHttp",
+  "BigIntDivisionForAmount",
 ] as const;
 
 test("utils module no longer exports removed dead helpers", () => {
@@ -24,7 +26,6 @@ test("utils module no longer exports removed dead helpers", () => {
 });
 
 test("surviving fetch utilities remain exported", () => {
-  assert.equal(typeof utilsBarrel.fetchHttp, "function");
   assert.equal(typeof utilsBarrel.fetchHttpJson, "function");
   assert.equal(typeof utilsBarrel.HttpResponseError, "function");
 });

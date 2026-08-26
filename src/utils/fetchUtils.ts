@@ -1,12 +1,5 @@
 import { type ILogger } from "../logger";
 
-export const fetchHttp = async (url: string, header = {}): Promise<string> => {
-  const response = await fetch(url, header);
-  const body = await response.text();
-
-  return body;
-};
-
 export const fetchHttpJson = async <T = unknown>(
   url: string,
   header = {},
