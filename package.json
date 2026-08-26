@@ -39,7 +39,6 @@
     "ethers": "^6.17.0",
     "inversify": "^8.2.3",
     "mysql2": "^3.24.2",
-    "puppeteer": "^25.9.0",
     "reflect-metadata": "^0.2.2",
     "tsx": "^4.23.12",
     "typeorm": "^1.1.0",
