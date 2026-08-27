@@ -1,6 +1,7 @@
 import { Entity, PrimaryColumn, Column, OneToMany } from "typeorm";
 import { Transaction } from "../transaction/Transaction";
 import { TokenHistory } from "../tokenHistory/TokenHistory";
+import { ColumnNumericTransformer, SCALE } from "../utils/moneyScale";
 
 @Entity()
 export class Wallet {
@@ -25,8 +26,13 @@ export class Wallet {
   @Column({ type: "float" })
   numberOfTokensTraded!: number;
 
-  @Column({ type: "float" })
-  performanceUSD!: number;
+  @Column({
+    type: "decimal",
+    precision: 38,
+    scale: SCALE,
+    transformer: new ColumnNumericTransformer(),
+  })
+  performanceUSD!: bigint;
 
   @Column({ type: "int" })
   numberOfTxs!: number;

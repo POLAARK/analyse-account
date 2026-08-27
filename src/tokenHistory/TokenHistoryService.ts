@@ -8,6 +8,13 @@ import { type TransferTransaction } from "../transaction";
 import { type ITransactionService } from "../transaction/ITransactionService";
 
 import { OneContainsStrings } from "../utils/stringUtils";
+import {
+  ORACLE_PRICE_FRACTION_DIGITS,
+  SCALE,
+  numberToScaledBigint,
+  parseDecimalToScaledBigint,
+  scaledFromUnits,
+} from "../utils/moneyScale";
 import { type ITokenHistoryService } from "./ITokenHistoryService";
 
 @injectable()
@@ -148,23 +155,29 @@ export class TokenHistoryService implements ITokenHistoryService {
     }
   }
 
+  private transferAmountToScaledBigint(transferTx: TransferTransaction): bigint {
+    if (transferTx.amountRaw !== undefined && transferTx.tokenDecimals !== undefined) {
+      return scaledFromUnits(transferTx.amountRaw, transferTx.tokenDecimals, SCALE);
+    }
+    return parseDecimalToScaledBigint(transferTx.amount.toFixed(18), SCALE);
+  }
+
   private async updateTokenHistoryForEthPair(
     transferTx: TransferTransaction,
     tokenHistory: TokenHistory,
   ) {
-    const amount = Number(transferTx.amount);
+    const amountScaled = this.transferAmountToScaledBigint(transferTx);
+    const usdValueScaled = numberToScaledBigint(
+      await this.ethOhlcService.getETHtoUSD(transferTx.amount, transferTx.timestamp),
+      ORACLE_PRICE_FRACTION_DIGITS,
+      SCALE,
+    );
     if (transferTx.status === "IN") {
-      tokenHistory.EthGained += amount;
-      tokenHistory.performanceUSD += await this.ethOhlcService.getETHtoUSD(
-        amount,
-        transferTx.timestamp,
-      );
+      tokenHistory.EthGained += amountScaled;
+      tokenHistory.performanceUSD += usdValueScaled;
     } else if (transferTx.status === "OUT") {
-      tokenHistory.EthSpent += amount;
-      tokenHistory.performanceUSD -= await this.ethOhlcService.getETHtoUSD(
-        amount,
-        transferTx.timestamp,
-      );
+      tokenHistory.EthSpent += amountScaled;
+      tokenHistory.performanceUSD -= usdValueScaled;
     }
   }
 
@@ -172,13 +185,13 @@ export class TokenHistoryService implements ITokenHistoryService {
     transferTx: TransferTransaction,
     tokenHistory: TokenHistory,
   ) {
-    const amount = Number(transferTx.amount);
+    const amountScaled = this.transferAmountToScaledBigint(transferTx);
     if (transferTx.status === "IN") {
-      tokenHistory.USDGained += amount;
-      tokenHistory.performanceUSD += amount;
+      tokenHistory.USDGained += amountScaled;
+      tokenHistory.performanceUSD += amountScaled;
     } else if (transferTx.status === "OUT") {
-      tokenHistory.USDSpent += amount;
-      tokenHistory.performanceUSD -= amount;
+      tokenHistory.USDSpent += amountScaled;
+      tokenHistory.performanceUSD -= amountScaled;
     }
   }
 }

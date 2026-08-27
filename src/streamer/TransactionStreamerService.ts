@@ -69,7 +69,7 @@ export class TransactionStreamerService {
             lastBlockUpdated: 0,
             transactions: [],
             numberOfTokensTraded: 0,
-            performanceUSD: 0,
+            performanceUSD: 0n,
             numberOfTxs: 0,
             lastAnalysisTimestamp: 0,
             startAnalysisTimestamp: 0,

@@ -7,6 +7,7 @@ import { type IWalletRepository } from "./IWalletRepository";
 import { Wallet } from "./Wallet";
 import { type IWalletService } from "./IWalletService";
 import { CustomError } from "../error/customError";
+import { scaleZero } from "../utils/moneyScale";
 
 @injectable()
 export class WalletService implements IWalletService {
@@ -109,7 +110,7 @@ export class WalletService implements IWalletService {
       );
       wallet.performanceUSD = tokenHistories.reduce(
         (total, tokenHistory) => total + tokenHistory.performanceUSD,
-        0,
+        scaleZero(),
       );
     } catch (_error) {
       throw new CustomError(
