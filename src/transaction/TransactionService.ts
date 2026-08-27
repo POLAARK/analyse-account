@@ -94,6 +94,14 @@ export class TransactionService {
         transactionReceipt,
       );
 
+      // One batched Multicall3 read replaces per-log token contracts; a failing or
+      // unsupported batch degrades to the legacy per-log lookup below.
+      const batchedTokenDetails = this.tokenService.getTokenDetailsBatch
+        ? await this.tokenService
+            .getTokenDetailsBatch([...new Set(transactionReceipt.logs.map((log) => log.address))])
+            .catch(() => undefined)
+        : undefined;
+
       for (const log of transactionReceipt.logs) {
         //Create a logCopy because of types :)
         const logCopy = {
@@ -102,14 +110,23 @@ export class TransactionService {
         };
         const tokenAddress: string = log.address;
 
-        const contractERC20 = new ethers.Contract(
-          tokenAddress,
-          erc20,
-          this.jsonRpcProviderManager.getCurrentProvider(),
-        );
-
-        const { tokenSymbol, tokenDecimals: tokenDecimalsRaw } =
-          await this.tokenService.getTokenDetails(tokenAddress, contractERC20);
+        let tokenDetails: { tokenSymbol: string; tokenDecimals: bigint };
+        const batchedDetails = batchedTokenDetails?.get(tokenAddress.toLowerCase());
+        if (batchedDetails) {
+          tokenDetails = {
+            tokenSymbol: batchedDetails.tokenSymbol,
+            tokenDecimals: BigInt(batchedDetails.tokenDecimals),
+          };
+        } else {
+          const contractERC20 = new ethers.Contract(
+            tokenAddress,
+            erc20,
+            this.jsonRpcProviderManager.getCurrentProvider(),
+          );
+          tokenDetails = await this.tokenService.getTokenDetails(tokenAddress, contractERC20);
+        }
+        const tokenSymbol = tokenDetails.tokenSymbol;
+        const tokenDecimalsRaw = tokenDetails.tokenDecimals;
 
         const parsedLog: LogDescription | null = interfaceERC20.parseLog(logCopy);
 
