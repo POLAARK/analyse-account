@@ -1,5 +1,6 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from "typeorm";
 import { Wallet } from "../wallet/Wallet";
+import { ColumnNumericTransformer, SCALE } from "../utils/moneyScale";
 
 /**
  * Identifies the history of a wallet trading performance on a specific token
@@ -19,17 +20,37 @@ export class TokenHistory {
   @Column({ type: "varchar", length: 20 })
   tokenSymbol!: string;
 
-  @Column({ type: "float" })
-  EthGained!: number;
+  @Column({
+    type: "decimal",
+    precision: 38,
+    scale: SCALE,
+    transformer: new ColumnNumericTransformer(),
+  })
+  EthGained!: bigint;
 
-  @Column({ type: "float" })
-  EthSpent!: number;
+  @Column({
+    type: "decimal",
+    precision: 38,
+    scale: SCALE,
+    transformer: new ColumnNumericTransformer(),
+  })
+  EthSpent!: bigint;
 
-  @Column({ type: "float" })
-  USDSpent!: number;
+  @Column({
+    type: "decimal",
+    precision: 38,
+    scale: SCALE,
+    transformer: new ColumnNumericTransformer(),
+  })
+  USDSpent!: bigint;
 
-  @Column({ type: "float" })
-  USDGained!: number;
+  @Column({
+    type: "decimal",
+    precision: 38,
+    scale: SCALE,
+    transformer: new ColumnNumericTransformer(),
+  })
+  USDGained!: bigint;
 
   @Column({ type: "int" })
   numberOfTx!: number;
@@ -37,8 +58,13 @@ export class TokenHistory {
   @Column({ type: "bigint" })
   lastTxBlock!: number;
 
-  @Column({ type: "float" })
-  performanceUSD!: number;
+  @Column({
+    type: "decimal",
+    precision: 38,
+    scale: SCALE,
+    transformer: new ColumnNumericTransformer(),
+  })
+  performanceUSD!: bigint;
 
   @Column({ type: "varchar", length: 5, nullable: true })
   pair!: string;
